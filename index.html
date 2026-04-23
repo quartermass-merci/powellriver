@@ -147,14 +147,14 @@
         </template>
       </div>
 
-      <!-- ===== OPEN CALENDAR SPOTS ===== Two-column grid by team, grouped by day ===== -->
+      <!-- ===== OPEN CALENDAR SPOTS ===== 30-min granular slots per team/day ===== -->
       <div class="mb-8">
         <div class="flex items-baseline justify-between mb-3 flex-wrap gap-2">
           <div>
             <h2 class="font-display text-2xl">Open calendar spots</h2>
-            <p class="text-xs opacity-65 mt-0.5">Tap any window to start an ad-hoc booking. The drawer lets you add email, phone, length, and notes.</p>
+            <p class="text-xs opacity-65 mt-0.5">Every 30-minute start time with at least half an hour free. Tap one to start a booking (15 / 30 / 45 / 60 min).</p>
           </div>
-          <span class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-50" x-text="openSpots.length + ' open · 30 min+'"></span>
+          <span class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-50" x-text="openSpots.length + ' slots'"></span>
         </div>
         <div class="grid md:grid-cols-2 gap-4">
           <template x-for="teamId in ['pk_jen','mike_katie']" :key="teamId">
@@ -178,9 +178,9 @@
                       <div class="flex flex-wrap gap-1">
                         <template x-for="spot in openSpotsByTeamDay[teamId][day][tod[0]]" :key="teamId + day + spot.start">
                           <button class="open-chip" @click="bookOpenSpot(spot)"
-                                  :title="dayLabel(spot.day) + ' · ' + (TEAMS[spot.team]||{}).label + ' · ' + spot.minutes + ' min window'">
-                            <span class="open-chip__time" x-text="spot.start + '–' + spot.end"></span>
-                            <span class="open-chip__dur" x-text="spot.minutes >= 60 ? Math.floor(spot.minutes/60) + 'h' + (spot.minutes%60 ? (spot.minutes%60)+'m' : '') : spot.minutes + 'm'"></span>
+                                  :title="dayLabel(spot.day) + ' · ' + (TEAMS[spot.team]||{}).label + ' · up to ' + spot.maxMinutes + ' min free'">
+                            <span class="open-chip__time" x-text="spot.start"></span>
+                            <span class="open-chip__dur" x-text="'up to ' + spot.maxMinutes + 'm'" x-show="spot.maxMinutes > 30"></span>
                           </button>
                         </template>
                       </div>
@@ -269,7 +269,7 @@
               <div class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60 mb-1">Outbound · Sun Apr 26</div>
               <template x-for="f in logistics.flights.outbound" :key="f.conf">
                 <div class="border-l-2 border-forest pl-2 mb-2">
-                  <div class="text-sm" x-text="f.flight"></div>
+                  <a class="text-sm hover:underline decoration-dotted underline-offset-2" :href="flightUrl(f.flight)" target="_blank" rel="noopener" x-text="f.flight"></a>
                   <div class="font-mono text-[11px] opacity-70" x-text="f.times + ' · ' + f.pax"></div>
                   <div class="font-mono text-[10px] opacity-50" x-text="f.conf"></div>
                 </div>
@@ -279,24 +279,37 @@
               <div class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60 mb-1">Return · Thu Apr 30</div>
               <template x-for="f in logistics.flights.ret" :key="f.conf">
                 <div class="border-l-2 border-clay pl-2 mb-2">
-                  <div class="text-sm" x-text="f.flight"></div>
+                  <a class="text-sm hover:underline decoration-dotted underline-offset-2" :href="flightUrl(f.flight)" target="_blank" rel="noopener" x-text="f.flight"></a>
                   <div class="font-mono text-[11px] opacity-70" x-text="f.times + ' · ' + f.pax"></div>
                   <div class="font-mono text-[10px] opacity-50" x-text="f.conf"></div>
                 </div>
               </template>
             </div>
           </div>
-          <div class="font-mono text-[10px] opacity-60 mt-2" x-text="'Aeroplan · ' + logistics.flights.aeroplan"></div>
+          <div class="font-mono text-[10px] opacity-60 mt-2">
+            Aeroplan · <a :href="aeroplanUrl()" target="_blank" rel="noopener" class="underline decoration-dotted underline-offset-2" x-text="logistics.flights.aeroplan"></a>
+          </div>
         </div>
 
         <!-- Rental -->
         <div class="card">
           <div class="stamp">Vehicle 1 · Rental</div>
           <div class="mt-3 space-y-1 text-sm">
-            <div><span class="font-display text-lg" x-text="logistics.rental.vehicle"></span> · <span x-text="logistics.rental.vendor"></span></div>
-            <div class="font-mono text-[11px] opacity-70" x-text="'Pickup · ' + logistics.rental.pickup"></div>
+            <div>
+              <span class="font-display text-lg" x-text="logistics.rental.vehicle"></span> ·
+              <a class="underline decoration-dotted underline-offset-2" :href="budgetUrl()" target="_blank" rel="noopener" x-text="logistics.rental.vendor"></a>
+            </div>
+            <div class="font-mono text-[11px] opacity-70">
+              Pickup ·
+              <a class="underline decoration-dotted underline-offset-2"
+                 :href="'https://maps.apple.com/?q=' + encodeURIComponent(logistics.rental.pickup)"
+                 target="_blank" rel="noopener" x-text="logistics.rental.pickup"></a>
+            </div>
             <div class="font-mono text-[11px]" x-text="logistics.rental.pickupTime + ' → ' + logistics.rental.dropoffTime"></div>
-            <div class="font-mono text-[11px]" x-text="'Conf · ' + logistics.rental.conf"></div>
+            <div class="font-mono text-[11px]">
+              Conf ·
+              <a class="underline decoration-dotted underline-offset-2" :href="budgetUrl()" target="_blank" rel="noopener" x-text="logistics.rental.conf"></a>
+            </div>
           </div>
         </div>
 
@@ -304,9 +317,20 @@
         <div class="card">
           <div class="stamp">Lodging</div>
           <div class="mt-3 space-y-1 text-sm">
-            <div><span class="font-display text-lg" x-text="logistics.lodging.property"></span></div>
-            <div class="font-mono text-[11px]" x-text="logistics.lodging.address"></div>
-            <div class="font-mono text-[11px]" x-text="'Host · ' + logistics.lodging.host"></div>
+            <div>
+              <a class="font-display text-lg underline decoration-dotted underline-offset-2"
+                 :href="airbnbUrl()" target="_blank" rel="noopener"
+                 x-text="logistics.lodging.property"></a>
+            </div>
+            <div class="font-mono text-[11px]">
+              <a class="underline decoration-dotted underline-offset-2"
+                 :href="'https://maps.apple.com/?q=' + encodeURIComponent(logistics.lodging.address)"
+                 target="_blank" rel="noopener" x-text="logistics.lodging.address"></a>
+            </div>
+            <div class="font-mono text-[11px]">
+              Host ·
+              <a class="underline decoration-dotted underline-offset-2" :href="'tel:' + logistics.lodging.host.replace(/\s/g,'')" x-text="logistics.lodging.host"></a>
+            </div>
             <div class="font-mono text-[11px]" x-text="logistics.lodging.checkin + ' → ' + logistics.lodging.checkout"></div>
             <div class="font-mono text-[11px] opacity-70" x-text="'Conf · ' + logistics.lodging.conf + ' · ' + logistics.lodging.cost"></div>
           </div>
@@ -318,12 +342,19 @@
           <ul class="mt-3 space-y-2">
             <template x-for="(f, i) in logistics.ferries" :key="i">
               <li class="border-l-2 pl-2" :class="f.book.includes('YES') ? 'border-forest' : 'border-line'">
-                <div class="text-sm" x-text="f.route"></div>
+                <a class="text-sm underline decoration-dotted underline-offset-2"
+                   :href="f.book.includes('YES') ? ferryBookUrl(f.route) : ferryUrl(f.route)"
+                   target="_blank" rel="noopener" x-text="f.route"></a>
                 <div class="font-mono text-[11px] opacity-70" x-text="f.when + ' · ' + f.duration"></div>
                 <div class="font-mono text-[10px]" :class="f.book.includes('YES') ? 'text-rust' : 'opacity-60'" x-text="f.book"></div>
               </li>
             </template>
           </ul>
+          <div class="mt-3 pt-2 border-t border-line/60 flex flex-wrap gap-x-3 gap-y-1 font-mono text-[10px]">
+            <a class="underline decoration-dotted underline-offset-2" href="https://www.bcferries.com/current-conditions" target="_blank" rel="noopener">Current conditions</a>
+            <a class="underline decoration-dotted underline-offset-2" href="https://www.bcferries.com/routes-fares/schedules/daily" target="_blank" rel="noopener">Schedules</a>
+            <a class="underline decoration-dotted underline-offset-2" href="https://twitter.com/BCFerries" target="_blank" rel="noopener">@BCFerries</a>
+          </div>
         </div>
       </div>
 

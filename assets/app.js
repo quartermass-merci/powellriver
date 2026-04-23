@@ -615,6 +615,10 @@ function trip() {
     // Open Calendar Spots — free gaps in each team lane on each field day,
     // within business hours (08:00–21:00 for Mon/Tue, 08:00–22:00 Wed).
     // Only gaps of 30+ minutes surface.
+    // 30-minute granular slot starts. Every half-hour where a 30-min
+    // booking would fit without overlapping an existing block becomes a chip.
+    // Each slot also carries `maxMinutes` — how far the free space extends,
+    // capped at 60, so the picker can offer 15/30/45/60 options.
     get openSpots() {
       const out = [];
       const ranges = {
@@ -622,44 +626,30 @@ function trip() {
         tue: [8 * 60, 21 * 60],
         wed: [8 * 60, 22 * 60],
       };
-      // Types that do NOT count as occupied — these represent explicit "free"
-      // or unscheduled time and should surface as spots, not block them.
       const softTypes = new Set(['buffer']);
       for (const [day, [startMin, endMin]] of Object.entries(ranges)) {
         for (const team of ['pk_jen', 'mike_katie']) {
-          const lane = this.blocks
+          const occupied = this.blocks
             .filter(b => b.day === day && b.team === team && !softTypes.has(b.type))
-            .map(b => ({
-              start: this._toMin(b.start),
-              end:   this._toMin(this.addMinutes(b.start, b.duration)),
-            }))
-            .sort((a, b) => a.start - b.start);
-          let cursor = startMin;
-          for (const slot of lane) {
-            if (slot.start > cursor + 15) {
-              const size = slot.start - cursor;
-              if (size >= 30) {
-                out.push({
-                  day, team,
-                  start: this._fromMin(cursor),
-                  end:   this._fromMin(slot.start),
-                  minutes: size,
-                });
-              }
-            }
-            cursor = Math.max(cursor, slot.end);
-          }
-          if (endMin > cursor + 30) {
+            .map(b => [this._toMin(b.start), this._toMin(this.addMinutes(b.start, b.duration))])
+            .sort((a, b) => a[0] - b[0]);
+          // Walk the day in 30-min increments
+          for (let t = startMin; t + 30 <= endMin; t += 30) {
+            const overlaps30 = occupied.some(([s, e]) => s < t + 30 && e > t);
+            if (overlaps30) continue;
+            // Find the next occupied block's start (if any) to compute max length
+            const nextStart = occupied.find(([s]) => s >= t + 30);
+            const headroom = (nextStart ? nextStart[0] : endMin) - t;
             out.push({
               day, team,
-              start: this._fromMin(cursor),
-              end:   this._fromMin(endMin),
-              minutes: endMin - cursor,
+              start: this._fromMin(t),
+              minutes: 30,
+              maxMinutes: Math.min(headroom, 60),
             });
           }
         }
       }
-      return out.sort((a, b) => b.minutes - a.minutes);
+      return out;
     },
 
     // Open the booking drawer pre-filled with a free slot + create a draft action.
@@ -1704,6 +1694,48 @@ function trip() {
       const ii = this.interviewById(a.intervieweeId);
       return ii ? ii.name : '';
     },
+
+    // --- Logistics hotlinks ---
+    // Flight tracker URL (FlightAware). Parses airline + number out of strings
+    // like "Flair F8 601" or "Air Canada 301 (A330)" or "AC 116 + AC 7884 via YYZ".
+    flightUrl(text) {
+      if (!text) return '';
+      let code = null;
+      let m = text.match(/\b(F8|AC)\s*(\d{2,4})\b/);
+      if (m) code = m[1] + m[2];
+      if (!code && /Flair/i.test(text)) {
+        const n = text.match(/\b(\d{2,4})\b/); if (n) code = 'F8' + n[1];
+      }
+      if (!code && /Air Canada/i.test(text)) {
+        const n = text.match(/\b(\d{2,4})\b/); if (n) code = 'AC' + n[1];
+      }
+      return code ? `https://www.flightaware.com/live/flight/${code}` : '';
+    },
+
+    // BC Ferries current conditions for the route. Day-of, this is the page
+    // we actually want: sailing status, whether the boat is on time.
+    ferryUrl(routeText) {
+      // Route codes for relevant legs:
+      //  Horseshoe Bay ↔ Langdale = TSA-LNG (no) — actually HSB-LGB I think? Let me
+      //  just send to the general current-conditions page which shows all routes.
+      return 'https://www.bcferries.com/current-conditions';
+    },
+
+    // BC Ferries booking / schedule lookup for a specific leg.
+    ferryBookUrl(routeText) {
+      return 'https://www.bcferries.com/routes-fares/schedules/daily';
+    },
+
+    // Budget Rent-a-Car reservation lookup. Deep-link to the confirmation
+    // form; PK fills in the PNR once he arrives at the page.
+    budgetUrl() { return 'https://www.budget.com/en/bmanage/amend-cancel'; },
+
+    // Aeroplan account
+    aeroplanUrl() { return 'https://www.aeroplan.com'; },
+
+    // Airbnb listing for Blissful Sunsets. We only have the confirmation code
+    // on file, so link to the trips page where PK can find the reservation.
+    airbnbUrl() { return 'https://www.airbnb.ca/trips'; },
 
     // ---- TSP re-order (nearest neighbour) ----
     previewReorder(d) {

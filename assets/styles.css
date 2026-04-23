@@ -554,7 +554,8 @@ table td, table th {
 }
 .day-pill--active .day-pill__date { opacity: 0.7; }
 
-/* Open-calendar-spot card on the Outreach page */
+/* Open-calendar-spot card on the Outreach page (legacy — retained for
+   layouts that still use it) */
 .slot-card {
   display: block;
   text-align: left;
@@ -571,6 +572,40 @@ table td, table th {
   background: var(--sm-mist);
   border-left-color: var(--sm-forest);
 }
+
+/* Open-calendar-spot CHIP — compact, shown in the two-column grid */
+.open-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.4rem 0.65rem;
+  background: var(--sm-paper);
+  border: 1px solid var(--sm-line);
+  border-radius: 2px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 120ms ease;
+  text-align: left;
+}
+.open-chip:hover {
+  background: var(--sm-forest);
+  color: var(--sm-paper);
+  border-color: var(--sm-forest);
+  transform: translateY(-1px);
+}
+.open-chip__time {
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.open-chip__dur {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  opacity: 0.6;
+}
+.open-chip:hover .open-chip__dur { opacity: 0.9; }
 
 /* Time-slot pill — smaller, for the Available Slots picker in the action drawer */
 .slot-pill {

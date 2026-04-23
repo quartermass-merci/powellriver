@@ -566,6 +566,25 @@ function trip() {
         .filter(a => !a.intervieweeId);
     },
 
+    // Structured open spots: { pk_jen: { mon:[], tue:[], wed:[] }, mike_katie: {...} }
+    // Used by the two-column grid on the Outreach page.
+    get openSpotsByTeamDay() {
+      const out = {
+        pk_jen:     { mon: [], tue: [], wed: [] },
+        mike_katie: { mon: [], tue: [], wed: [] },
+      };
+      for (const s of this.openSpots) {
+        if (out[s.team] && out[s.team][s.day]) out[s.team][s.day].push(s);
+      }
+      // Keep each day's slots in start-time order
+      for (const team of Object.keys(out)) {
+        for (const day of Object.keys(out[team])) {
+          out[team][day].sort((a, b) => a.start.localeCompare(b.start));
+        }
+      }
+      return out;
+    },
+
     // Open Calendar Spots — free gaps in each team lane on each field day,
     // within business hours (08:00–21:00 for Mon/Tue, 08:00–22:00 Wed).
     // Only gaps of 30+ minutes surface.

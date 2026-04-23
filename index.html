@@ -147,31 +147,40 @@
         </template>
       </div>
 
-      <!-- ===== OPEN CALENDAR SPOTS ===== Free gaps on field days ===== -->
+      <!-- ===== OPEN CALENDAR SPOTS ===== Two-column grid by team, grouped by day ===== -->
       <div class="mb-8">
         <div class="flex items-baseline justify-between mb-3 flex-wrap gap-2">
           <div>
             <h2 class="font-display text-2xl">Open calendar spots</h2>
-            <p class="text-xs opacity-65 mt-0.5">Free windows on the field days. Tap any spot to start an ad-hoc booking in that slot.</p>
+            <p class="text-xs opacity-65 mt-0.5">Tap any window to start an ad-hoc booking. The drawer lets you add email, phone, length, and notes.</p>
           </div>
-          <span class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-50" x-text="openSpots.length + ' windows · 30 min+'"></span>
+          <span class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-50" x-text="openSpots.length + ' open · 30 min+'"></span>
         </div>
-        <div class="panel p-1">
-          <div class="grid md:grid-cols-2 gap-1">
-            <template x-for="spot in openSpots" :key="spot.day + spot.team + spot.start">
-              <button class="slot-card" @click="bookOpenSpot(spot)">
-                <div class="flex items-baseline justify-between">
-                  <div class="font-display text-lg" x-text="dayLabel(spot.day)"></div>
-                  <div class="font-mono text-[11px] opacity-65" x-text="(TEAMS[spot.team]||{}).label"></div>
+        <div class="grid md:grid-cols-2 gap-4">
+          <template x-for="teamId in ['pk_jen','mike_katie']" :key="teamId">
+            <div class="panel p-4">
+              <div class="flex items-center gap-2 pb-3 border-b border-line mb-3">
+                <span class="w-2.5 h-2.5 rounded-full inline-block" :style="'background:' + (TEAMS[teamId]||{}).color"></span>
+                <div class="font-display text-lg" x-text="(TEAMS[teamId]||{}).label"></div>
+                <span class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-50 ml-auto" x-text="(TEAMS[teamId]||{}).role"></span>
+              </div>
+              <template x-for="day in ['mon','tue','wed']" :key="teamId + day">
+                <div class="mb-3">
+                  <div class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60 mb-1.5" x-text="dayLabel(day)"></div>
+                  <div class="flex flex-wrap gap-1.5">
+                    <template x-for="spot in openSpotsByTeamDay[teamId][day]" :key="teamId + day + spot.start">
+                      <button class="open-chip" @click="bookOpenSpot(spot)"
+                              :title="dayLabel(spot.day) + ' · ' + (TEAMS[spot.team]||{}).label + ' · ' + spot.minutes + ' min window'">
+                        <span class="open-chip__time" x-text="spot.start + '–' + spot.end"></span>
+                        <span class="open-chip__dur" x-text="spot.minutes >= 60 ? Math.floor(spot.minutes/60) + 'h' + (spot.minutes%60 ? (spot.minutes%60)+'m' : '') : spot.minutes + 'm'"></span>
+                      </button>
+                    </template>
+                    <span class="text-xs opacity-40 italic" x-show="openSpotsByTeamDay[teamId][day].length === 0">Fully booked.</span>
+                  </div>
                 </div>
-                <div class="font-mono text-sm mt-1" x-text="spot.start + '–' + spot.end"></div>
-                <div class="font-mono text-[11px] opacity-70 mt-0.5" x-text="(spot.minutes >= 60 ? Math.floor(spot.minutes/60) + 'h ' + (spot.minutes%60 ? (spot.minutes%60) + 'm' : '') : spot.minutes + ' min') + ' open'"></div>
-              </button>
-            </template>
-            <template x-if="openSpots.length === 0">
-              <div class="p-4 text-xs opacity-55 italic">No open windows — every lane is full across the field days. Delete or shorten a block to free up time.</div>
-            </template>
-          </div>
+              </template>
+            </div>
+          </template>
         </div>
       </div>
 

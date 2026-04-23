@@ -17,16 +17,6 @@ window.WEIRD_LAYERS = {
 window.WEIRD_EVENTS = [
   // ——— Layer 1 · THE SKY ———
   {
-    id: 'ufo-adrian-1975', layer: 'sky', kind: 'UFO',
-    title: 'Mount Adrian lights',
-    date: 'Dec 29, 1975',
-    lat: 49.9750, lng: -125.1200,
-    place: 'Mount Adrian, ~2,000 ft · Campbell River',
-    summary: 'Three bright horizontal lights, ~100 yards off, silent, lighting the forest as bright as day. Sore eyes for three days.',
-    story: 'Ralph Wy was out snowmobiling with his wife Lois, daughter Brenda, and Bill Mo when they first saw an orange-yellow light, then three bright horizontal lights drifting silently in at about a hundred yards off. All four witnesses reported sore eyes for three days afterward. CFB Comox 442 Squadron confirmed flare drops at Bates Beach that night, but the witnesses rejected the explanation on the grounds of colour and duration.',
-    source: 'Upper Islander, Jan 7, 1976',
-  },
-  {
     id: 'ufo-powell-1978', layer: 'sky', kind: 'UFO',
     title: 'The rainbow pulse',
     date: 'Sept 15, 1978',
@@ -35,26 +25,6 @@ window.WEIRD_EVENTS = [
     summary: 'A logger and pilot woke to a rhythmic buzz cycling through every colour in the spectrum, steady white at its peak. Heavy fog obscured the craft.',
     story: 'A logger who held a pilot certificate and his partner woke in the night to a rhythmic pulsing buzz that cycled through the full colour spectrum, settling on a steady white at each peak. Heavy fog obscured any direct view. The object lifted to the northwest over the trees. The primary witness reported long-term aftereffects — small lesions at the temples and repeated 3 a.m. sleep disruption for years afterward.',
     source: 'MUFON case report',
-  },
-  {
-    id: 'ufo-crofton-1978', layer: 'sky', kind: 'UFO',
-    title: 'Folded paper over Crofton',
-    date: 'Dec 11, 1978',
-    lat: 48.8750, lng: -123.6700,
-    place: 'Fuller Lake Arena, near Crofton',
-    summary: 'A blue-gray fluorescent object shaped like a piece of paper folded corner to corner crossed the Trans-Canada, rose vertically, and descended behind the Crofton mill.',
-    story: 'Walter and Joan Bronlow watched a blue-gray fluorescent object shaped, in their own words, like "a piece of paper folded corner to corner" cross the Trans-Canada highway, rise straight up, and then descend behind the Crofton mill. It was the full-paper-triangle profile that stuck with them — no lights, no sound, just shape and motion.',
-    source: 'Ladysmith–Chemainus Chronicle, Dec 20, 1978',
-  },
-  {
-    id: 'ufo-royston-70s', layer: 'sky', kind: 'UFO',
-    title: 'Red light over Royston',
-    date: 'Late 1970s · April 30',
-    lat: 49.6700, lng: -124.9800,
-    place: 'Royston / Courtenay',
-    summary: 'Carol Mortonson of Powell River watched a bright red light descend vertically, hover for ten minutes, then move toward Courtenay.',
-    story: 'At 10:30 p.m. on April 30 in the late 1970s, Carol Mortonson of Powell River saw a bright red light descend vertically, hover for ten minutes, then move toward Courtenay. She gave chase by car. A separate sighting by Mrs. Whittingham was logged the same week. Campbell River RCMP confirmed "no major UFO sightings since 1972 in the local area" at the time of the report.',
-    source: 'Comox District Free Press, radio transcript',
   },
   {
     id: 'ufo-malaspina-undated', layer: 'sky', kind: 'UFO',
@@ -76,26 +46,6 @@ window.WEIRD_EVENTS = [
     story: 'Starting March 24, 1999, Grade 3/4 students Carmen Anderson and Eden Carlsen saw coloured flashing lights from Eden\'s home overlooking Texada. It was the first of roughly ten sightings across three weeks. By April 14 it was a schoolyard event — multiple students at Grief Point Elementary watching the lights around 9:30 p.m. CFB Comox attributed them to Aurora maritime patrol aircraft. The kids were unconvinced.',
     source: 'The Peak, May 1, 1999',
   },
-  {
-    id: 'ufo-disc-2017', layer: 'sky', kind: 'UFO',
-    title: 'Blue-green disc',
-    date: '~May 2017',
-    lat: 49.7500, lng: -125.4000,
-    place: 'NW Vancouver Island, viewed from the Sunshine Coast',
-    summary: 'Silent oval disc with a blue-green rear glow, roughly 500 ft overhead, moving northwest.',
-    story: 'A witness observed a silent oval disc with a blue-green glow at the rear, roughly five hundred feet overhead, moving northwest. They anchored the date by remembering it was "the same week as the North Korean incident" — the USS Carl Vinson deployment in April 2017.',
-    source: 'MUFON case report',
-  },
-  {
-    id: 'ufo-spiral-2025', layer: 'sky', kind: 'UFO',
-    title: 'Sunset spiral',
-    date: 'Feb 12, 2025',
-    lat: 49.5500, lng: -123.8500,
-    place: 'Sunshine Coast',
-    summary: 'A spiralling smoke trail crossed the horizon at sunset and held for ten minutes. The astronomy club ruled out a meteor.',
-    story: 'A spiralling smoke or condensation trail crossed the horizon at sunset and held visible for about ten minutes. Sunshine Coast Astronomy Club president Charles Ennis ruled out a meteor — the duration was too long; a meteor would cross the sky in seconds. He speculated drone fire. No definitive explanation was filed.',
-    source: 'Coast Reporter, Feb 20, 2025',
-  },
 
   // ——— Layer 2 · THE HIGH COUNTRY ———
   {
@@ -107,16 +57,6 @@ window.WEIRD_EVENTS = [
     summary: 'Swedish prospector Albert Ostman was carried off in his sleeping bag and held for six days by a family of four Sasquatch. Escaped by feeding the old man a full tin of snuff.',
     story: 'Albert Ostman took the Union Steamship from Vancouver up to Lund in 1924, hired an elderly Indigenous guide to the head of Toba Inlet, and went northeast looking for a lost mine. His camp was disturbed three nights running — prunes, pancake flour, and shells missing; the salt untouched. On the fourth night he was picked up in his sleeping bag and carried for about three hours by an eight-foot male Sasquatch into a small basin valley with a V-shaped opening. He was held six days with a family of four: the old man, a seven-foot-plus female, a seven-foot young male, and a flat-chested young female. He escaped by feeding the old man a full tin of snuff, then worked his way south past Mt. Baker, down to Sechelt Inlet, and caught the Union Boat back to Vancouver. He told no one until 1957. His account was taken under the Canadian Evidence Act. Police magistrate A.M. Naismith cross-examined him and found no flaw. He told Queen Elizabeth II in 1959. He died Jan 16, 1975.',
     source: 'John Green, Sasquatch: The Apes Among Us (Hancock House, 1978)',
-  },
-  {
-    id: 'sasq-muchalat-1928', layer: 'high', kind: 'CRYPTID',
-    title: 'Muchalat Harry',
-    date: 'Fall 1928',
-    lat: 49.7400, lng: -126.2800,
-    place: 'Conuma River · Nootka territory, W Vancouver Island',
-    summary: 'A Nootka trapper was taken from his camp and carried two miles to a rock-shelf holding twenty Sasquatch. He escaped and ran forty-five miles barefoot. His hair turned white in three weeks.',
-    story: 'Muchalat Harry was a Nootka trapper on Vancouver Island. In the fall of 1928 he was taken from his camp twelve miles up the Conuma River, carried two or three miles to a rock-shelf camp holding about twenty Sasquatch, and saw what he believed were human bones. He escaped, ran forty-five miles barefoot in his underwear back to the Nootka settlement, and arrived by canoe at three in the morning. His hair turned pure white over a three-week recovery. He never entered the forest again. Father Anthony Terhaar documented the account; Peter Byrne carried it forward.',
-    source: 'Peter Byrne, via Father Anthony Terhaar',
   },
   {
     id: 'sasq-reddit', layer: 'high', kind: 'CRYPTID',

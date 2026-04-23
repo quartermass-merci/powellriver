@@ -774,7 +774,7 @@
       <div class="weird-hero">
         <div class="weird-hero__stamp">Field Guide · Confidential</div>
         <h1 class="weird-hero__title">The Weird <span class="weird-hero__amp">&amp;</span> The Eerie</h1>
-        <p class="weird-hero__sub">A corpus of UFOs, Sasquatch, hermits, burned homesteads, roadside cults, and restless ghosts along the Toba Inlet, Powell Lake, and Sunshine Coast corridor. Nineteen stories. Seven layers. One question — what does this place believe about itself?</p>
+        <p class="weird-hero__sub">A field guide to the weird corpus of Powell River — UFOs, Sasquatch, hermits, burned homesteads, a roadside cult, and restless ghosts. From Toba Inlet down through Powell Lake, the town, the Malaspina Channel, and across to Texada. What does this place believe about itself?</p>
       </div>
 
       <!-- Layer filter chips -->
@@ -795,6 +795,13 @@
       <!-- The map — Stamen Watercolor + custom markers -->
       <div class="weird-map-wrap">
         <div id="weird-map"></div>
+        <!-- Mobile: map starts locked so page scroll passes through -->
+        <button class="map-unlock-btn" x-show="isTouchDevice && !weirdMapInteractive" @click="toggleWeirdMapInteraction()" x-transition>
+          Tap to pan · zoom the map
+        </button>
+        <button class="map-lock-btn" x-show="isTouchDevice && weirdMapInteractive" @click="toggleWeirdMapInteraction()" x-transition>
+          Lock map (scroll freely)
+        </button>
         <!-- Decorative flourish: a marine creature in the strait -->
         <svg class="weird-flourish weird-flourish--creature" viewBox="0 0 200 80" aria-hidden="true">
           <path d="M8 60 Q30 30 55 48 Q75 62 95 42 Q118 22 140 45 Q163 68 185 48 Q192 42 197 46" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
@@ -804,33 +811,6 @@
         </svg>
       </div>
 
-      <!-- Side panel — slides up from below on mobile, right on desktop -->
-      <template x-if="weirdSelected">
-        <div class="weird-detail panel"
-             x-data="{ ev: weirdEventById(weirdSelected) }">
-          <template x-if="ev">
-            <div>
-              <div class="flex items-start justify-between gap-3">
-                <div>
-                  <div class="weird-detail__kind" :style="'--kind:' + (WEIRD_LAYERS[ev.layer]||{}).color" x-text="ev.kind + ' · ' + (WEIRD_LAYERS[ev.layer]||{}).label"></div>
-                  <h3 class="weird-detail__title" x-text="ev.title"></h3>
-                  <div class="weird-detail__meta">
-                    <span x-text="ev.date"></span>
-                    <span class="weird-detail__place" x-text="'· ' + ev.place"></span>
-                  </div>
-                </div>
-                <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="weirdSelected = null">×</button>
-              </div>
-              <p class="weird-detail__summary" x-text="ev.summary"></p>
-              <p class="weird-detail__story" x-text="ev.story"></p>
-              <div class="weird-detail__source">
-                <span class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-55">Source</span>
-                <span x-text="ev.source"></span>
-              </div>
-            </div>
-          </template>
-        </div>
-      </template>
 
       <!-- Chronological timeline strip -->
       <div class="weird-timeline">
@@ -880,6 +860,42 @@
     </section>
 
   </main>
+
+  <!-- === Drawer (The Weird — event detail, slides from right / bottom sheet on mobile) === -->
+  <template x-if="weirdSelected">
+    <div>
+      <div class="drawer-backdrop" @click="weirdSelected = null"></div>
+      <aside class="weird-drawer" x-data="{ ev: weirdEventById(weirdSelected) }">
+        <template x-if="ev">
+          <div class="weird-drawer__scroll">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <div class="weird-drawer__kind"
+                     :style="'--kind:' + (WEIRD_LAYERS[ev.layer]||{}).color"
+                     x-text="ev.kind + ' · ' + (WEIRD_LAYERS[ev.layer]||{}).label"></div>
+                <h3 class="weird-drawer__title" x-text="ev.title"></h3>
+                <div class="weird-drawer__meta">
+                  <span x-text="ev.date"></span>
+                  <span class="weird-drawer__place" x-text="'· ' + ev.place"></span>
+                </div>
+              </div>
+              <button class="weird-drawer__close" @click="weirdSelected = null" aria-label="Close">×</button>
+            </div>
+            <p class="weird-drawer__summary" x-text="ev.summary"></p>
+            <p class="weird-drawer__story" x-text="ev.story"></p>
+            <div class="weird-drawer__source">
+              <span class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-55">Source</span>
+              <span x-text="ev.source"></span>
+            </div>
+            <div class="weird-drawer__nav">
+              <button class="btn-text" @click="_weirdStep(-1)">← Previous in time</button>
+              <button class="btn-text" @click="_weirdStep(1)">Next in time →</button>
+            </div>
+          </div>
+        </template>
+      </aside>
+    </div>
+  </template>
 
   <!-- === Drawer (action item booking console) === -->
   <template x-if="focusedActionIdx !== null">

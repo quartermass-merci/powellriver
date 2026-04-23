@@ -201,27 +201,46 @@ function trip() {
       return Math.max(0, Math.min(100, pct));
     },
     selectWeird(id) {
-      this.weirdSelected = id;
+      this._vt(() => { this.weirdSelected = id; });
       const ev = this.weirdEventById(id);
       if (ev && this._weirdMap) {
         this._weirdMap.flyTo([ev.lat, ev.lng], Math.max(this._weirdMap.getZoom(), 10), { duration: 0.9 });
       }
     },
+    // Step chronologically through the corpus from the drawer.
+    _weirdStep(delta) {
+      const chron = this.weirdChronological;
+      if (!chron.length) return;
+      const i = chron.findIndex(e => e.id === this.weirdSelected);
+      const next = chron[(i + delta + chron.length) % chron.length];
+      if (next) this.selectWeird(next.id);
+    },
+    weirdMapInteractive: false,
     initWeirdMap() {
       if (this._weirdMap) { setTimeout(() => this._weirdMap.invalidateSize(), 80); return; }
       if (typeof L === 'undefined') { setTimeout(() => this.initWeirdMap(), 200); return; }
       const el = document.getElementById('weird-map');
       if (!el || el.offsetWidth < 10) { setTimeout(() => this.initWeirdMap(), 150); return; }
-      const m = L.map(el, { scrollWheelZoom: false, zoomControl: true })
-        .fitBounds([[48.82, -126.45], [50.58, -122.85]], { padding: [20, 20] });
-      // Standard OSM tiles with a painterly CSS filter applied to the
-      // container (see styles.css #weird-map). Reliable + no API key.
+      // Bounds tightened to Powell River region only: Toba Inlet head north,
+      // Texada south, Lund/Tla'amin west, a strip of mainland east.
+      const locked = this.isTouchDevice;
+      const m = L.map(el, {
+        scrollWheelZoom: false, zoomControl: true,
+        dragging: !locked, touchZoom: !locked, tap: !locked, doubleClickZoom: !locked,
+      }).fitBounds([[49.55, -124.90], [50.55, -124.00]], { padding: [20, 20] });
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 17,
         attribution: '&copy; OpenStreetMap',
       }).addTo(m);
       this._weirdMap = m;
+      this.weirdMapInteractive = !locked;
       this._renderWeirdMarkers();
+    },
+    toggleWeirdMapInteraction() {
+      const m = this._weirdMap; if (!m) return;
+      this.weirdMapInteractive = !this.weirdMapInteractive;
+      if (this.weirdMapInteractive) { m.dragging.enable(); m.touchZoom.enable(); m.tap && m.tap.enable(); m.doubleClickZoom.enable(); }
+      else { m.dragging.disable(); m.touchZoom.disable(); m.tap && m.tap.disable(); m.doubleClickZoom.disable(); }
     },
     _clearWeirdMarkers() {
       if (!this._weirdMap) return;

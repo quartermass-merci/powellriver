@@ -1372,14 +1372,44 @@ section.section { scroll-margin-top: 80px; }
   50%      { transform: translateY(-6px); }
 }
 
-/* Detail panel — shows on the right on desktop, stacked on mobile */
-.weird-detail {
-  margin-top: 1.5rem;
-  padding: 1.5rem 1.75rem;
+/* ============= Weird drawer ============= */
+.weird-drawer {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: min(540px, 92vw);
   background: #FBF6EB;
   border-left: 4px solid var(--sm-ink);
+  z-index: 2001;
+  box-shadow: -14px 0 40px rgba(0,0,0,0.14);
+  animation: weird-slide-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
-.weird-detail__kind {
+@keyframes weird-slide-in {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+.weird-drawer__scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1.75rem;
+  flex: 1;
+}
+.weird-drawer__close {
+  background: transparent;
+  border: 1px solid rgba(0,0,0,0.18);
+  color: var(--sm-ink);
+  width: 34px; height: 34px;
+  border-radius: 2px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 140ms ease;
+  flex-shrink: 0;
+}
+.weird-drawer__close:hover { opacity: 1; }
+.weird-drawer__kind {
   font-family: var(--font-mono);
   font-size: var(--fs-cap);
   text-transform: uppercase;
@@ -1387,7 +1417,7 @@ section.section { scroll-margin-top: 80px; }
   color: var(--kind, var(--sm-ink-2));
   margin-bottom: 0.25rem;
 }
-.weird-detail__title {
+.weird-drawer__title {
   font-family: var(--font-display);
   font-variation-settings: "opsz" 72;
   font-size: 2rem;
@@ -1396,37 +1426,35 @@ section.section { scroll-margin-top: 80px; }
   font-weight: 450;
   color: #241F1C;
 }
-.weird-detail__meta {
+.weird-drawer__meta {
   font-family: var(--font-mono);
   font-size: 0.78rem;
   opacity: 0.65;
   margin-top: 0.35rem;
   font-variant-numeric: tabular-nums;
 }
-.weird-detail__place {
+.weird-drawer__place {
   font-family: var(--font-sans);
   font-size: 0.82rem;
   margin-left: 0.3rem;
   opacity: 0.75;
 }
-.weird-detail__summary {
+.weird-drawer__summary {
   font-family: var(--font-display);
   font-variation-settings: "opsz" 36;
   font-size: 1.15rem;
-  line-height: 1.4;
-  margin-top: 1rem;
+  line-height: 1.45;
+  margin-top: 1.2rem;
   color: var(--sm-ink-2);
   font-style: italic;
-  max-width: 60ch;
 }
-.weird-detail__story {
+.weird-drawer__story {
   font-size: 1rem;
   line-height: 1.6;
-  margin-top: 1rem;
-  max-width: 64ch;
+  margin-top: 1.2rem;
 }
-.weird-detail__source {
-  margin-top: 1.25rem;
+.weird-drawer__source {
+  margin-top: 1.5rem;
   padding-top: 1rem;
   border-top: 1px solid rgba(0,0,0,0.08);
   font-family: var(--font-display);
@@ -1438,6 +1466,37 @@ section.section { scroll-margin-top: 80px; }
   gap: 0.6rem;
   align-items: baseline;
   flex-wrap: wrap;
+}
+.weird-drawer__nav {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(0,0,0,0.08);
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* On mobile the drawer slides up from the bottom as a sheet */
+@media (max-width: 768px) {
+  .weird-drawer {
+    top: auto;
+    left: 0; right: 0; bottom: 0;
+    width: 100%;
+    height: 82vh;
+    max-height: 82vh;
+    border-left: none;
+    border-top: 4px solid var(--sm-ink);
+    border-radius: 8px 8px 0 0;
+    animation: weird-sheet-in 280ms cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow: 0 -14px 40px rgba(0,0,0,0.16);
+  }
+  @keyframes weird-sheet-in {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+  .weird-drawer__title { font-size: 1.6rem; }
+  .weird-drawer__scroll { padding: 1.25rem; }
 }
 
 /* Timeline strip */

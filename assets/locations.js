@@ -2,35 +2,37 @@
 // lat/lng approximated from public map data; drive times are conservative estimates.
 // Drive time formula: 1.3 * straight_line_km / 50 km/h, with manual overrides for known legs.
 
+// Coordinates verified via OpenStreetMap's Nominatim geocoder where possible.
+// A few (meridian, hulks, brent_b) are Townsite/south estimates.
 window.LOCATIONS = [
   // --- Powell River core ---
-  { id: "airbnb",        name: "Blissful Sunsets Airbnb", addr: "4312 Fernwood Ave, Powell River", lat: 49.8643, lng: -124.5378, cat: "lodging" },
-  { id: "meridian",      name: "Meridian 125W Facility",  addr: "Old Paper Mill, Townsite",        lat: 49.8784, lng: -124.5494, cat: "facility" },
-  { id: "museum",        name: "qathet Museum & Archives", addr: "4798 Marine Ave, Powell River",   lat: 49.8356, lng: -124.5190, cat: "archival" },
-  { id: "hulks",         name: "The Hulks (breakwater)",  addr: "Powell Lake, Townsite side",       lat: 49.8821, lng: -124.5510, cat: "archival" },
-  { id: "rivercity",     name: "River City Coffee",        addr: "4552 Marine Ave, Powell River",    lat: 49.8367, lng: -124.5208, cat: "food" },
-  { id: "shinglemill",   name: "The Shingle Mill Pub",     addr: "6233 Powell Pl, Powell River",     lat: 49.8899, lng: -124.5454, cat: "food" },
-  { id: "monks",         name: "Monks Pub & Eatery",       addr: "4463 Marine Ave, Powell River",    lat: 49.8332, lng: -124.5220, cat: "food" },
-  { id: "forrest",       name: "Forrest (old mill bar)",   addr: "Townsite area",                    lat: 49.8775, lng: -124.5460, cat: "food" },
-  { id: "prpeak",        name: "Powell River Peak",        addr: "7030 Glacier St, Powell River",    lat: 49.8421, lng: -124.5310, cat: "media" },
-  { id: "marine_ave",    name: "Marine Avenue (downtown)", addr: "Marine Ave, Powell River",         lat: 49.8360, lng: -124.5218, cat: "mots" },
-  { id: "cranberry",     name: "Cranberry Village",        addr: "Cranberry St, Powell River",       lat: 49.8550, lng: -124.5100, cat: "mots" },
-  { id: "wildwood",      name: "Wildwood",                 addr: "Wildwood, Powell River",           lat: 49.8790, lng: -124.5000, cat: "mots" },
-  { id: "marina",        name: "Westview Marina",          addr: "Westview Harbour, Powell River",   lat: 49.8335, lng: -124.5250, cat: "mots" },
-  { id: "dispensary_1",  name: "Dispensary (Marine Ave)",  addr: "Marine Ave, Powell River",         lat: 49.8340, lng: -124.5225, cat: "interview" },
-  { id: "dispensary_2",  name: "Dispensary (Westview)",    addr: "Westview, Powell River",           lat: 49.8300, lng: -124.5260, cat: "interview" },
+  { id: "airbnb",        name: "Blissful Sunsets Airbnb", addr: "4312 Fernwood Ave, Powell River", lat: 49.8442, lng: -124.5122, cat: "lodging" },
+  { id: "meridian",      name: "Meridian 125W Facility",  addr: "Old Catalyst Paper Mill, Townsite", lat: 49.8810, lng: -124.5565, cat: "facility" },
+  { id: "museum",        name: "qathet Museum & Archives", addr: "4798 Marine Ave, Powell River",   lat: 49.8478, lng: -124.5375, cat: "archival" },
+  { id: "hulks",         name: "The Hulks (breakwater)",  addr: "Powell Lake, Townsite side",       lat: 49.8790, lng: -124.5540, cat: "archival" },
+  { id: "rivercity",     name: "River City Coffee",        addr: "4552 Marine Ave, Powell River",    lat: 49.8410, lng: -124.5310, cat: "food" },
+  { id: "shinglemill",   name: "The Shingle Mill Pub",     addr: "6233 Powell Pl, Powell River",     lat: 49.8852, lng: -124.5446, cat: "food" },
+  { id: "monks",         name: "Monks Pub & Eatery",       addr: "4463 Marine Ave, Powell River",    lat: 49.8388, lng: -124.5290, cat: "food" },
+  { id: "forrest",       name: "Forrest (old mill bar)",   addr: "Townsite area",                    lat: 49.8805, lng: -124.5500, cat: "food" },
+  { id: "prpeak",        name: "Powell River Peak",        addr: "7030 Glacier St, Powell River",    lat: 49.8312, lng: -124.5195, cat: "media" },
+  { id: "marine_ave",    name: "Marine Avenue (downtown)", addr: "Marine Ave, Powell River",         lat: 49.8378, lng: -124.5262, cat: "mots" },
+  { id: "cranberry",     name: "Cranberry Village",        addr: "Cranberry St, Powell River",       lat: 49.8475, lng: -124.5068, cat: "mots" },
+  { id: "wildwood",      name: "Wildwood",                 addr: "Wildwood, Powell River",           lat: 49.8720, lng: -124.5040, cat: "mots" },
+  { id: "marina",        name: "Westview Marina",          addr: "Westview Harbour, Powell River",   lat: 49.8330, lng: -124.5295, cat: "mots" },
+  { id: "dispensary_1",  name: "Dispensary (Marine Ave)",  addr: "Marine Ave, Powell River",         lat: 49.8370, lng: -124.5260, cat: "interview" },
+  { id: "dispensary_2",  name: "Dispensary (Westview)",    addr: "Westview, Powell River",           lat: 49.8335, lng: -124.5300, cat: "interview" },
 
   // --- Outside the city ---
-  { id: "brent_b",       name: "Brent B — Wheelchair Weed", addr: "South of Powell River",           lat: 49.7450, lng: -124.4580, cat: "interview" },
-  { id: "lund",          name: "Lund (northern coast)",     addr: "Lund, BC",                        lat: 49.9817, lng: -124.7630, cat: "broll" },
-  { id: "tlaamin",       name: "Tla'amin coast (public)",   addr: "Sliammon, BC",                    lat: 49.9310, lng: -124.6450, cat: "broll" },
+  { id: "brent_b",       name: "Brent B — Wheelchair Weed", addr: "South of Powell River (Hwy 101)", lat: 49.7890, lng: -124.4620, cat: "interview" },
+  { id: "lund",          name: "Lund (northern coast)",     addr: "Lund, BC",                        lat: 49.9817, lng: -124.7591, cat: "broll" },
+  { id: "tlaamin",       name: "Tla'amin coast (public)",   addr: "Sliammon, BC",                    lat: 49.9280, lng: -124.6300, cat: "broll" },
 
   // --- Ferry + travel corridor ---
-  { id: "saltery_bay",   name: "Saltery Bay Terminal",      addr: "Saltery Bay, BC",                 lat: 49.7790, lng: -124.1920, cat: "ferry" },
-  { id: "earls_cove",    name: "Earls Cove Terminal",       addr: "Earls Cove, BC",                  lat: 49.7510, lng: -124.0000, cat: "ferry" },
-  { id: "langdale",      name: "Langdale Terminal",         addr: "Langdale, BC",                    lat: 49.4375, lng: -123.4736, cat: "ferry" },
-  { id: "horseshoe_bay", name: "Horseshoe Bay Terminal",    addr: "West Vancouver, BC",              lat: 49.3746, lng: -123.2715, cat: "ferry" },
-  { id: "gibsons",       name: "Gibsons",                    addr: "Gibsons, BC",                     lat: 49.4003, lng: -123.5022, cat: "food" },
+  { id: "saltery_bay",   name: "Saltery Bay Terminal",      addr: "Saltery Bay, BC",                 lat: 49.7814, lng: -124.1771, cat: "ferry" },
+  { id: "earls_cove",    name: "Earls Cove Terminal",       addr: "Earls Cove, BC",                  lat: 49.7532, lng: -124.0088, cat: "ferry" },
+  { id: "langdale",      name: "Langdale Terminal",         addr: "Langdale, BC",                    lat: 49.4340, lng: -123.4765, cat: "ferry" },
+  { id: "horseshoe_bay", name: "Horseshoe Bay Terminal",    addr: "West Vancouver, BC",              lat: 49.3686, lng: -123.2759, cat: "ferry" },
+  { id: "gibsons",       name: "Gibsons",                    addr: "Gibsons, BC",                     lat: 49.4006, lng: -123.5089, cat: "food" },
   { id: "sechelt",       name: "Sechelt",                    addr: "Sechelt, BC",                     lat: 49.4744, lng: -123.7560, cat: "food" },
   { id: "yvr",           name: "YVR Airport (Main)",         addr: "Richmond, BC",                    lat: 49.1947, lng: -123.1792, cat: "airport" },
 ];

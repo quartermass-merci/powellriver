@@ -22,6 +22,7 @@ function trip() {
     // data
     blocks: [],                // flat array of schedule blocks across all 3 days
     actions: [],
+    contactOverrides: {},      // {interviewId: {email, phone, linkedin, notes}} — user edits, synced via Firebase
     selectedBlockId: null,      // opens edit drawer
     focusedBlockId: null,       // detail strip + map focus (light-weight)
     toast: null,
@@ -129,6 +130,7 @@ function trip() {
           if (v && v.blocks && Array.isArray(v.blocks) && v.blocks.length) {
             this.blocks = v.blocks;
             this.actions = v.actions || this.actions;
+            if (v.contactOverrides && typeof v.contactOverrides === 'object') this.contactOverrides = v.contactOverrides;
             this.lastEditedBy = v.meta?.lastEditedBy || null;
             this.lastEditedAt = v.meta?.lastEditedAt || 0;
           } else {
@@ -149,6 +151,7 @@ function trip() {
           if (v.meta && v.meta.lastEditedBy && v.meta.lastEditedBy === this.uid && v.meta.lastEditedAt === this.lastEditedAt) return;
           if (Array.isArray(v.blocks))  this.blocks  = v.blocks;
           if (Array.isArray(v.actions)) this.actions = v.actions;
+          if (v.contactOverrides && typeof v.contactOverrides === 'object') this.contactOverrides = v.contactOverrides;
           this.lastEditedBy = v.meta?.lastEditedBy || null;
           this.lastEditedAt = v.meta?.lastEditedAt || 0;
         });
@@ -166,6 +169,7 @@ function trip() {
       this._remoteRef.set({
         blocks: this.blocks,
         actions: this.actions,
+        contactOverrides: this.contactOverrides,
         meta: { version: this.version, lastEditedBy: this.uid || 'anon', lastEditedAt: this.lastEditedAt },
       }).catch(err => console.warn('firebase push', err));
     },
@@ -221,7 +225,21 @@ function trip() {
       return window.INTERVIEWS.filter(i => i.day === d);
     },
     interviewById(id) {
-      return window.INTERVIEWS.find(i => i.id === id);
+      // Return a view that applies any user-edited contact overrides.
+      const base = window.INTERVIEWS.find(i => i.id === id);
+      if (!base) return null;
+      const ov = this.contactOverrides[id] || {};
+      return {
+        ...base,
+        email:    ov.email    !== undefined ? ov.email    : base.email,
+        phone:    ov.phone    !== undefined ? ov.phone    : (base.phone || ''),
+        linkedin: ov.linkedin !== undefined ? ov.linkedin : base.linkedin,
+      };
+    },
+    updateContact(id, field, value) {
+      if (!this.contactOverrides[id]) this.contactOverrides[id] = {};
+      this.contactOverrides[id][field] = value;
+      this.pushRemote();
     },
     blockById(id) {
       return this.blocks.find(b => b.id === id);
@@ -481,6 +499,31 @@ function trip() {
         if (slots.length >= 6) break;
       }
       return slots;
+    },
+
+    // Free slots (per team) for the current actionForm day + duration.
+    // Only business-hour slots (07:00–20:00) so we don't offer 04:30 AM interviews.
+    _freeSlotsForTeam(teamId) {
+      const f = this.actionForm;
+      if (!f) return [];
+      const slots = [];
+      for (const s of this.timeSlots) {
+        // Skip pre-7am and post-8pm for interview slots
+        const [h] = s.split(':').map(Number);
+        if (h < 7 || h >= 20) continue;
+        const hasConflict = this.blocks.some(x =>
+          x.day === f.day && x.team === teamId && this.slotsOverlap(s, f.duration, x.start, x.duration)
+        );
+        if (!hasConflict) slots.push(s);
+      }
+      return slots;
+    },
+    get freeSlotsPK() { return this._freeSlotsForTeam('pk_jen'); },
+    get freeSlotsMK() { return this._freeSlotsForTeam('mike_katie'); },
+    // Pick a free slot (sets team + start in one go)
+    pickFreeSlot(teamId, start) {
+      this.actionForm.team = teamId;
+      this.actionForm.start = start;
     },
 
     // Move a conflicting block to the next free slot in its lane.
@@ -914,6 +957,24 @@ function trip() {
       if (this.showRoutePK) drawTeam('pk_jen',     '#2B3A2E');
       if (this.showRouteMK) drawTeam('mike_katie', '#8B5A2B');
       this._enrichWithOSRM();
+      // Auto-fit the map to the day's stops (uses the day's locations, not the entire 25-marker set).
+      this._fitDay();
+    },
+
+    _fitDay() {
+      if (!this.mapInstance) return;
+      const ids = new Set();
+      this.blocks
+        .filter(b => b.day === this.day && b.locationId && b.type !== 'buffer' && b.type !== 'synthesis')
+        .forEach(b => ids.add(b.locationId));
+      // Always include home as the starting point.
+      ids.add('airbnb');
+      const pts = [...ids].map(id => window.locationById(id)).filter(Boolean).map(l => [l.lat, l.lng]);
+      if (pts.length >= 2) {
+        this.mapInstance.fitBounds(pts, { padding: [30, 30], animate: false });
+      } else if (pts.length === 1) {
+        this.mapInstance.setView(pts[0], 13, { animate: false });
+      }
     },
 
     async _enrichWithOSRM() {

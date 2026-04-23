@@ -6,8 +6,14 @@
 function trip() {
   return {
     // ---- top-level state ----
-    tab: 'overview',
+    tab: 'action-items',
     day: 'mon',
+    actionFilter: 'all',
+    focusedActionIdx: null,
+    actionForm: { day: 'mon', start: '10:00', duration: 30, team: 'pk_jen', locationId: '', title: '' },
+    moveHistory: [],
+    recording: { blockId: null, supported: typeof window !== 'undefined' && (!!window.SpeechRecognition || !!window.webkitSpeechRecognition) },
+    _recognition: null,
     version: '1.0',
     connState: 'connecting',
     lastEditedBy: null,
@@ -57,8 +63,17 @@ function trip() {
       this.loadLocal();
       this.initFirebase();
       window.addEventListener('beforeunload', () => this.saveLocal());
-      // Re-render day route when day changes
-      this.$watch && this.$watch('day', () => { this.focusedBlockId = null; this._clearFocusLeg && this._clearFocusLeg(); this._debouncedRenderRoute(); });
+      // Re-render day route when day changes; drop focus only if the focused block is on a different day
+      this.$watch && this.$watch('day', (newDay) => {
+        if (this.focusedBlockId) {
+          const fb = this.blockById(this.focusedBlockId);
+          if (!fb || fb.day !== newDay) {
+            this.focusedBlockId = null;
+            this._clearFocusLeg && this._clearFocusLeg();
+          }
+        }
+        this._debouncedRenderRoute();
+      });
     },
 
     // ---- seed + local persistence ----
@@ -277,14 +292,17 @@ function trip() {
       );
 
       if (conflicts.length === 0) {
+        this._recordMove(moving);
         moving.start = slot; moving.team = team;
         this.saveBlock(moving);
+        this.insertTravelBuffers(moving);
         return;
       }
 
       // 1 conflict, both unpinned → swap
       if (conflicts.length === 1 && !moving.locked && !conflicts[0].locked) {
         const other = conflicts[0];
+        this._recordMove(moving); this._recordMove(other);
         const movedStart = other.start;
         const otherStart = moving.start;
         const otherTeam = moving.team;
@@ -303,11 +321,13 @@ function trip() {
         return;
       }
       // Place moving first
+      this._recordMove(moving);
       moving.start = slot; moving.team = team;
       this.saveBlock(moving);
       // Push each pushable to next free slot in the lane after moving end
       let cursor = this.addMinutes(slot, moving.duration);
       for (const c of pushable) {
+        this._recordMove(c);
         const free = this._findFreeSlot(moving.day, team, cursor, c.duration, [moving.id]);
         c.start = free; c.team = team;
         cursor = this.addMinutes(free, c.duration);
@@ -363,7 +383,280 @@ function trip() {
     removeAction(i) {
       this.actions.splice(i, 1); this.saveActions();
     },
+    removeActionByIdx(idx) {
+      // _idx is the index attached by actionsByStatus — use it against the live array.
+      const pos = this.actions.findIndex((_, i) => i === idx);
+      if (pos >= 0) this.actions.splice(pos, 1);
+      this.saveActions();
+    },
     saveActions() { this.pushRemote(); },
+
+    // Return actions filtered by status, each tagged with its original index.
+    actionsByStatus(status) {
+      return this.actions
+        .map((a, _idx) => ({ ...a, _idx }))
+        .filter(a => a.status === status);
+    },
+
+    // One-line summary of the linked block (if any) — shown under each action row.
+    actionBlockSummary(a) {
+      const block = this._actionBlock(a);
+      if (!block) return '';
+      return `${this.dayLabel(block.day)} · ${block.start}–${this.addMinutes(block.start, block.duration)} · ${this.locationShort(block.locationId) || '—'}`;
+    },
+    _actionBlock(a) {
+      if (a.linkedBlockId) return this.blocks.find(b => b.id === a.linkedBlockId);
+      if (a.intervieweeId) return this.blocks.find(b => b.interviewId === a.intervieweeId);
+      return null;
+    },
+
+    // Create a new blank action + open its drawer for ad-hoc booking.
+    addActionAndOpen() {
+      this.actions.push({
+        owner: 'PK', text: 'New booking', status: 'pending',
+      });
+      const idx = this.actions.length - 1;
+      this.saveActions();
+      this.openAction(idx);
+    },
+
+    openAction(idx) {
+      this.focusedActionIdx = idx;
+      const a = this.actions[idx];
+      const block = this._actionBlock(a);
+      const ii = a.intervieweeId ? this.interviewById(a.intervieweeId) : null;
+      // Seed the booking form from the linked block, or fall back to interviewee defaults.
+      if (block) {
+        this.actionForm = {
+          day: block.day, start: block.start, duration: block.duration,
+          team: block.team, locationId: block.locationId || '',
+          title: block.title,
+        };
+      } else if (ii) {
+        // Default to the interviewee's seed day / duration / team, 10:00 start
+        this.actionForm = {
+          day: ii.day && ii.day !== 'remote' ? ii.day : 'mon',
+          start: '10:00',
+          duration: ii.duration || 30,
+          team: ii.team || 'pk_jen',
+          locationId: ii.locationId || '',
+          title: ii.name,
+        };
+      } else {
+        this.actionForm = { day: 'mon', start: '10:00', duration: 30, team: 'pk_jen', locationId: '', title: a.text };
+      }
+    },
+    closeAction() { this.focusedActionIdx = null; },
+
+    // Blocks that would overlap the proposed slot in the selected team lane.
+    get actionConflicts() {
+      const f = this.actionForm;
+      if (!f || !f.start) return [];
+      const linked = this.focusedActionIdx != null ? this._actionBlock(this.actions[this.focusedActionIdx]) : null;
+      return this.blocks.filter(x =>
+        x.day === f.day && x.team === f.team && (linked == null || x.id !== linked.id) &&
+        this.slotsOverlap(f.start, f.duration, x.start, x.duration)
+      );
+    },
+
+    // First 6 free slots in the chosen lane — offered when the chosen start conflicts.
+    get suggestedSlots() {
+      const f = this.actionForm;
+      if (!f || !f.start) return [];
+      const slots = [];
+      for (const s of this.timeSlots) {
+        const hasConflict = this.blocks.some(x =>
+          x.day === f.day && x.team === f.team && this.slotsOverlap(s, f.duration, x.start, x.duration)
+        );
+        if (!hasConflict) slots.push(s);
+        if (slots.length >= 6) break;
+      }
+      return slots;
+    },
+
+    // Move a conflicting block to the next free slot in its lane.
+    bumpConflict(conflictId) {
+      const b = this.blockById(conflictId);
+      if (!b) return;
+      if (b.locked) { this.showToast(`Can't bump — ${b.title} is pinned`); return; }
+      this._recordMove(b);
+      const f = this.actionForm;
+      const newStart = this._findFreeSlot(b.day, b.team, this.addMinutes(f.start, f.duration), b.duration, [b.id]);
+      b.start = newStart;
+      this.saveBlock(b);
+      this.showToast(`Bumped "${b.title}" to ${newStart}`);
+    },
+
+    // Confirm/create a booking from the action form.
+    confirmAction(force = false) {
+      if (this.focusedActionIdx == null) return;
+      const a = this.actions[this.focusedActionIdx];
+      const f = this.actionForm;
+      if (!f.title || !f.title.trim()) { this.showToast('Title required'); return; }
+      if (!force && this.actionConflicts.length > 0) { this.showToast('Conflicts remain — bump or pick another slot'); return; }
+      // If force, bump every unpinned conflict first (auto-push to next free)
+      if (force) {
+        const pinned = this.actionConflicts.filter(c => c.locked);
+        if (pinned.length > 0) { this.showToast(`Can't force — pinned: ${pinned[0].title}`); return; }
+        // Bump in order
+        const conflicts = [...this.actionConflicts];
+        for (const c of conflicts) this.bumpConflict(c.id);
+      }
+
+      let block = this._actionBlock(a);
+      if (block) {
+        // Update existing
+        this._recordMove(block);
+        block.day = f.day; block.start = f.start; block.duration = f.duration;
+        block.team = f.team; block.locationId = f.locationId || null;
+        block.title = f.title.trim(); block.locked = true;
+        this.saveBlock(block);
+      } else {
+        const id = `act_${Date.now().toString(36)}`;
+        block = {
+          id, day: f.day, team: f.team, start: f.start, duration: f.duration,
+          title: f.title.trim(), locationId: f.locationId || null,
+          type: a.intervieweeId ? 'formal' : 'formal',
+          brief: '', attendees: '',
+          locked: true, interviewId: a.intervieweeId || null, notes: '',
+        };
+        this.blocks.push(block);
+        a.linkedBlockId = id;
+      }
+      a.status = 'confirmed';
+      this.insertTravelBuffers(block);
+      this.pushRemote();
+      this._debouncedRenderRoute();
+      this.showToast(`Confirmed — ${block.title}`);
+      this.closeAction();
+      this.tab = 'schedule';
+      this.day = block.day;
+      this.$nextTick ? this.$nextTick(() => this.focusBlock(block.id)) : setTimeout(() => this.focusBlock(block.id), 50);
+    },
+
+    markActionDone() {
+      if (this.focusedActionIdx == null) return;
+      this.actions[this.focusedActionIdx].status = 'done';
+      this.saveActions();
+      this.closeAction();
+      this.showToast('Marked done');
+    },
+
+    // ---- Move history / Undo ----
+    _recordMove(block) {
+      if (!block) return;
+      this.moveHistory.push({
+        blockId: block.id,
+        day: block.day, start: block.start, duration: block.duration,
+        team: block.team, locationId: block.locationId,
+        at: Date.now(),
+      });
+      if (this.moveHistory.length > 25) this.moveHistory.shift();
+    },
+    undoMove() {
+      const last = this.moveHistory.pop();
+      if (!last) { this.showToast('Nothing to undo'); return; }
+      const b = this.blockById(last.blockId);
+      if (!b) { this.showToast('Block no longer exists'); return; }
+      b.day = last.day; b.start = last.start; b.duration = last.duration;
+      b.team = last.team; b.locationId = last.locationId;
+      this.saveBlock(b);
+      this._debouncedRenderRoute();
+      this.showToast(`Undone — ${b.title} back to ${last.start}`);
+    },
+
+    // Wrapper that records state before saving (so undo can restore).
+    recordAndSave(b) {
+      this._recordMove(b);
+      this.saveBlock(b);
+    },
+
+    // ---- Notes + voice capture ----
+    appendTimestampToNotes(b) {
+      if (!b) return;
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      const ts = `[${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}]`;
+      const existing = b.notes || '';
+      b.notes = existing + (existing && !existing.endsWith('\n') ? '\n' : '') + `${ts} `;
+      this.saveBlock(b);
+    },
+
+    toggleRecording(blockId) {
+      if (this.recording.blockId === blockId) {
+        if (this._recognition) { try { this._recognition.stop(); } catch (e) {} }
+        this.recording.blockId = null;
+        return;
+      }
+      if (!this.recording.supported) { this.showToast('Voice capture needs Chrome/Edge — paste instead'); return; }
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const r = new SR();
+      r.continuous = true;
+      r.interimResults = false;
+      r.lang = 'en-US';
+      r.onresult = (ev) => {
+        const b = this.blockById(blockId);
+        if (!b) return;
+        const text = Array.from(ev.results).slice(ev.resultIndex).map(res => res[0].transcript).join(' ').trim();
+        if (!text) return;
+        const existing = b.notes || '';
+        b.notes = existing + (existing && !existing.endsWith('\n') ? ' ' : '') + text + ' ';
+        this.saveBlock(b);
+      };
+      r.onerror = (ev) => {
+        console.warn('speech error', ev.error);
+        if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
+          this.showToast('Microphone blocked — enable in browser settings');
+        }
+        this.recording.blockId = null;
+      };
+      r.onend = () => {
+        if (this.recording.blockId === blockId) {
+          // Restart automatically if still marked as recording (long sessions).
+          try { r.start(); } catch (e) { this.recording.blockId = null; }
+        }
+      };
+      try { r.start(); } catch (e) { this.showToast('Recording failed: ' + e.message); return; }
+      this._recognition = r;
+      this.recording.blockId = blockId;
+    },
+
+    // ---- CSV export of all notes ----
+    exportNotesCsv() {
+      const rows = [['Day', 'Start', 'End', 'Team', 'Location', 'Title', 'Attendees', 'Brief', 'Notes']];
+      const days = ['mon', 'tue', 'wed'];
+      const sorted = this.blocks
+        .filter(b => b.notes && b.notes.trim().length > 0 || b.brief && b.brief.trim().length > 0 || b.interviewId)
+        .sort((a, b) => (days.indexOf(a.day) - days.indexOf(b.day)) || a.start.localeCompare(b.start));
+      for (const b of sorted) {
+        rows.push([
+          this.dayLabel(b.day),
+          b.start,
+          this.addMinutes(b.start, b.duration),
+          (this.TEAMS[b.team] || {}).label || b.team,
+          this.locationLabel(b.locationId) || '',
+          b.title || '',
+          b.attendees || '',
+          b.brief || '',
+          b.notes || '',
+        ]);
+      }
+      const csv = rows.map(row =>
+        row.map(cell => {
+          const s = String(cell == null ? '' : cell);
+          if (s.includes(',') || s.includes('"') || s.includes('\n')) return '"' + s.replace(/"/g, '""') + '"';
+          return s;
+        }).join(',')
+      ).join('\r\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `meridian-notes-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      this.showToast(`Exported ${sorted.length} rows`);
+    },
 
     // ---- Lock-in form ----
     submitLockIn() {
@@ -456,15 +749,27 @@ function trip() {
     },
 
     initMap() {
-      if (this.mapInstance) { setTimeout(() => this.mapInstance.invalidateSize(), 50); return; }
+      if (this.mapInstance) {
+        // Existing map — just re-compute its size in case the section was hidden when created.
+        setTimeout(() => {
+          this.mapInstance.invalidateSize();
+          this.mapInstance.setView([49.858, -124.548], 11, { animate: false });
+          this.renderDayRoute();
+        }, 80);
+        return;
+      }
       if (typeof L === 'undefined') { setTimeout(() => this.initMap(), 200); return; }
       const el = document.getElementById('map-el');
-      if (!el) return;
+      if (!el || el.offsetWidth < 10) {
+        // Section still hidden; try again shortly.
+        setTimeout(() => this.initMap(), 120);
+        return;
+      }
 
-      // Wider default bounds: whole Upper Sunshine Coast, Brent B (south) to Lund (north).
-      const southWest = [49.72, -124.80];
-      const northEast = [50.00, -124.15];
-      const m = L.map(el, { scrollWheelZoom: false, zoomControl: true }).fitBounds([southWest, northEast]);
+      // Explicit setView (fitBounds runs before layout on first paint and zooms out to 0).
+      // Zoom 11 centered on Westview/Townsite shows: Brent B south, Lund north, Meridian, Airbnb, Marine Ave.
+      const m = L.map(el, { scrollWheelZoom: false, zoomControl: true })
+        .setView([49.858, -124.548], 11);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 18,
         attribution: '&copy; OpenStreetMap'
@@ -506,31 +811,46 @@ function trip() {
       this.mapDayLayers = [];
     },
 
-    // Draw numbered route for each enabled team for the selected day
+    // Draw numbered route for each enabled team for the selected day.
+    // Each day starts at the Airbnb (4312 Fernwood Ave) — it's prepended as "🏠 Start"
+    // before the first numbered stop.
     renderDayRoute() {
       if (!this.mapInstance) return;
       this._clearDayRoute();
+      const home = window.locationById('airbnb');
+      // Always draw the "HOME" pin, once.
+      if (home) {
+        const homeIcon = L.divIcon({
+          className: 'home-pin',
+          html: `<div class="home-dot">⌂</div>`,
+          iconSize: [26, 26], iconAnchor: [13, 13],
+        });
+        const homeMarker = L.marker([home.lat, home.lng], { icon: homeIcon, zIndexOffset: 300 }).addTo(this.mapInstance);
+        homeMarker.bindTooltip('Start of every day · 4312 Fernwood Ave', { direction: 'top', offset: [0, -10] });
+        this.mapDayLayers.push(homeMarker);
+      }
       const drawTeam = (teamId, color) => {
         const lane = this.blocks
           .filter(b => b.day === this.day && (b.team === teamId || b.team === 'both') && b.locationId)
-          .filter(b => b.type !== 'buffer' && b.type !== 'synthesis')   // skip no-location-change filler
+          .filter(b => b.type !== 'buffer' && b.type !== 'synthesis')
           .sort((a, b) => a.start.localeCompare(b.start));
-        // Dedupe consecutive same-location stops
         const deduped = [];
         for (const b of lane) {
           const prev = deduped[deduped.length - 1];
           if (!prev || prev.locationId !== b.locationId) deduped.push(b);
         }
-        // Draw polyline
-        const coords = deduped.map(b => {
-          const l = window.locationById(b.locationId);
-          return l ? [l.lat, l.lng] : null;
-        }).filter(Boolean);
+        // Prepend the Airbnb as stop 0 if the first stop isn't already there,
+        // so the polyline + numbering reflect leaving home each morning.
+        let coordsLocs = deduped.map(b => window.locationById(b.locationId)).filter(Boolean);
+        if (home && coordsLocs.length > 0 && coordsLocs[0].id !== 'airbnb') {
+          coordsLocs = [home, ...coordsLocs];
+        }
+        const coords = coordsLocs.map(l => [l.lat, l.lng]);
         if (coords.length >= 2) {
           const line = L.polyline(coords, { color, weight: 3, opacity: 0.55, dashArray: '6 6' }).addTo(this.mapInstance);
           this.mapDayLayers.push(line);
         }
-        // Numbered pins at each stop
+        // Numbered pins — skip the prepended home (drawn separately above)
         deduped.forEach((b, i) => {
           const l = window.locationById(b.locationId);
           if (!l) return;
@@ -546,7 +866,6 @@ function trip() {
       };
       if (this.showRoutePK) drawTeam('pk_jen',     '#2B3A2E');
       if (this.showRouteMK) drawTeam('mike_katie', '#8B5A2B');
-      // Asynchronously fetch real road geometry and replace dashed lines with solid
       this._enrichWithOSRM();
     },
 
@@ -570,6 +889,7 @@ function trip() {
           return null;
         }
       };
+      const home = window.locationById('airbnb');
       const drawTeam = async (teamId, color) => {
         const lane = this.blocks
           .filter(b => b.day === this.day && (b.team === teamId || b.team === 'both') && b.locationId)
@@ -580,7 +900,8 @@ function trip() {
           const prev = deduped[deduped.length - 1];
           if (!prev || prev.locationId !== b.locationId) deduped.push(b);
         }
-        const locs = deduped.map(b => window.locationById(b.locationId)).filter(Boolean);
+        let locs = deduped.map(b => window.locationById(b.locationId)).filter(Boolean);
+        if (home && locs.length > 0 && locs[0].id !== 'airbnb') locs = [home, ...locs];
         const allCoords = [];
         for (let i = 0; i < locs.length - 1; i++) {
           const leg = await fetchLeg(locs[i], locs[i + 1]);

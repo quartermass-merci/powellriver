@@ -72,7 +72,7 @@
   <nav class="border-b border-line bg-paper sticky top-0 z-30 no-print">
     <div class="max-w-7xl mx-auto px-6 flex items-center justify-between">
       <div class="flex">
-        <template x-for="t in ['Overview','Schedule','Lock In']" :key="t">
+        <template x-for="t in ['Action Items','Schedule','Logistics']" :key="t">
           <button class="nav-btn" :class="tab===t.toLowerCase().replace(' ','-') ? 'active' : ''"
                   @click="tab = t.toLowerCase().replace(' ','-')" x-text="t"></button>
         </template>
@@ -88,17 +88,75 @@
 
   <main class="max-w-7xl mx-auto px-6 py-8 space-y-12">
 
-    <!-- ============ OVERVIEW ============ -->
-    <section class="section" x-show="tab==='overview'" id="overview">
-      <div class="flex items-end justify-between mb-5">
+    <!-- ============ ACTION ITEMS (landing) ============ -->
+    <section class="section" x-show="tab==='action-items'" id="action-items">
+      <div class="flex items-end justify-between mb-5 flex-wrap gap-4">
         <div>
-          <div class="stamp">Part B · Travel + Interview Schedule</div>
-          <h1 class="font-display text-4xl mt-3">The Powell River Field Research Plan</h1>
-          <p class="text-ink-2/80 max-w-2xl mt-2">Phase One, Community Immersion. Two teams, three field days, eighteen interviews — a working plan, not a frozen doc.</p>
+          <div class="stamp">Outreach + Booking Console</div>
+          <h1 class="font-display text-4xl mt-3">What still needs locking in</h1>
+          <p class="text-ink-2/80 max-w-2xl mt-2">Click any item to open the booking drawer — interviewee context, outreach templates, proposed slot with live conflict detection, and one-click confirm that writes to the schedule.</p>
         </div>
-        <div class="text-right text-sm font-mono opacity-70">
-          <div x-text="'v' + version"></div>
-          <div>Owner · PK Lawton</div>
+        <div class="flex gap-2">
+          <button class="btn secondary" @click="actionFilter='all'" :class="actionFilter==='all' ? 'btn' : ''">All</button>
+          <button class="btn secondary" @click="actionFilter='pending'" :class="actionFilter==='pending' ? 'btn' : ''">Pending</button>
+          <button class="btn secondary" @click="actionFilter='confirmed'" :class="actionFilter==='confirmed' ? 'btn' : ''">Confirmed</button>
+          <button class="btn" @click="addAction()">+ Add</button>
+        </div>
+      </div>
+
+      <!-- Grouped by status -->
+      <template x-for="status in ['pending','in progress','confirmed','done']" :key="status">
+        <div class="mb-4" x-show="actionFilter==='all' || actionFilter===status || (actionFilter==='pending' && (status==='pending' || status==='in progress')) || (actionFilter==='confirmed' && (status==='confirmed' || status==='done'))">
+          <div class="stamp mb-2" :class="status==='confirmed' ? 'ok' : status==='pending' ? 'wait' : ''" x-text="status + ' · ' + actionsByStatus(status).length"></div>
+          <div class="panel">
+            <template x-for="(a, i) in actionsByStatus(status)" :key="a._idx">
+              <div class="action-row" :class="{ 'action-row--open': focusedActionIdx === a._idx }"
+                   @click="openAction(a._idx)">
+                <div class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60 w-10 shrink-0" x-text="a.owner"></div>
+                <div class="flex-1">
+                  <div class="text-sm leading-snug" x-text="a.text"></div>
+                  <div class="mt-1 flex flex-wrap items-center gap-2 text-[11px] opacity-75">
+                    <template x-if="a.intervieweeId">
+                      <span class="font-mono uppercase tracking-[0.1em] text-[10px]"
+                            x-text="'→ ' + actionIntervieweeName(a)"></span>
+                    </template>
+                    <template x-if="actionBlockSummary(a)">
+                      <span class="font-mono tracking-wide" x-text="actionBlockSummary(a)"></span>
+                    </template>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0" @click.stop>
+                  <template x-if="a.intervieweeId">
+                    <button class="btn !py-1 !px-2 !text-[10px]"
+                            :title="'Draft ' + (a.template || 'cold_pk') + ' email in Gmail'"
+                            @click="draftIntro(a.intervieweeId, a.template || 'cold_pk')">✉ Draft</button>
+                  </template>
+                  <select class="select !w-28 !py-1 !text-[11px]" x-model="a.status" @change="saveActions()">
+                    <option>pending</option><option>in progress</option><option>confirmed</option><option>done</option>
+                  </select>
+                  <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="removeActionByIdx(a._idx)">×</button>
+                </div>
+              </div>
+            </template>
+            <template x-if="actionsByStatus(status).length === 0">
+              <div class="text-xs opacity-50 p-4 italic">Nothing here.</div>
+            </template>
+          </div>
+        </div>
+      </template>
+    </section>
+
+    <!-- ============ LOGISTICS ============ -->
+    <section class="section" x-show="tab==='logistics'" id="logistics">
+      <div class="flex items-end justify-between mb-5 flex-wrap gap-4">
+        <div>
+          <div class="stamp">Part B · Travel + Booked Logistics</div>
+          <h1 class="font-display text-4xl mt-3">Flights, ferries, rental, lodging</h1>
+          <p class="text-ink-2/80 max-w-2xl mt-2">Travel dates, confirmation codes, and daily non-negotiables. Export all field notes to CSV for import into Google Sheets.</p>
+        </div>
+        <div class="flex flex-col gap-2 text-sm font-mono opacity-90">
+          <button class="btn" @click="exportNotesCsv()">⬇ Export notes (CSV)</button>
+          <div class="text-right opacity-70" x-text="'v' + version"></div>
         </div>
       </div>
 
@@ -201,44 +259,6 @@
         </template>
       </div>
 
-      <!-- Action items -->
-      <div class="card mt-6">
-        <div class="flex items-center justify-between">
-          <div class="stamp">Action Items · This Week</div>
-          <button class="btn secondary text-[10px]" @click="addAction()">+ Add item</button>
-        </div>
-        <p class="text-xs opacity-60 mt-2">Items tagged to an interviewee have a <span class="font-mono text-[10px] bg-mist px-1.5 py-0.5 rounded">✉ Draft</span> button that opens a pre-filled Gmail.</p>
-        <ul class="mt-3 divide-y divide-line">
-          <template x-for="(a, i) in actions" :key="i">
-            <li class="py-2">
-              <div class="flex items-start gap-3">
-                <select class="select !w-24 !py-1 !text-[11px]" x-model="a.status" @change="saveActions()">
-                  <option>pending</option><option>in progress</option><option>confirmed</option><option>done</option>
-                </select>
-                <span class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60 pt-2 w-10 shrink-0" x-text="a.owner"></span>
-                <input class="input !py-1 !text-sm flex-1" x-model="a.text" @change="saveActions()" />
-                <template x-if="a.intervieweeId">
-                  <button class="btn !py-1 !px-2 !text-[10px] whitespace-nowrap"
-                          :title="'Draft ' + (a.template || 'cold_pk') + ' email to ' + actionIntervieweeName(a) + ' in Gmail'"
-                          @click="draftIntro(a.intervieweeId, a.template || 'cold_pk')">✉ Draft</button>
-                </template>
-                <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="removeAction(i)">×</button>
-              </div>
-              <template x-if="a.intervieweeId">
-                <div class="ml-[124px] mt-1 flex items-center gap-2 flex-wrap text-[11px] opacity-75">
-                  <span class="font-mono uppercase tracking-[0.12em] opacity-60">Linked</span>
-                  <span x-text="actionIntervieweeName(a)"></span>
-                  <template x-for="tpl in ['warm_joe','cold_pk','cold_katie','confirm']" :key="tpl">
-                    <button class="font-mono text-[10px] underline decoration-dotted underline-offset-2 hover:text-forest"
-                            @click="draftIntro(a.intervieweeId, tpl)"
-                            x-text="tpl.replace('_',' · ')"></button>
-                  </template>
-                </div>
-              </template>
-            </li>
-          </template>
-        </ul>
-      </div>
     </section>
 
     <!-- ============ SCHEDULE (timetable + map + detail strip) ============ -->
@@ -252,7 +272,7 @@
         </div>
         <div class="flex gap-2">
           <button class="btn secondary" @click="previewReorder(day)" :disabled="day==='tue'">Re-order for travel</button>
-          <button class="btn" @click="tab='lock-in'">+ Lock In</button>
+          <button class="btn" @click="addActionAndOpen()">+ New booking</button>
         </div>
       </div>
 
@@ -279,7 +299,7 @@
                        :data-type="b.type"
                        draggable="true"
                        @dragstart="dragStart($event, b.id)"
-                       @click="focusBlock(b.id)">
+                       @click="focusBlock(b.id); openBlock(b.id)">
                     <span class="ttl" x-text="b.title"></span>
                     <div class="meta">
                       <span x-text="b.duration + 'm'"></span>
@@ -300,7 +320,7 @@
                        :data-type="b.type"
                        draggable="true"
                        @dragstart="dragStart($event, b.id)"
-                       @click="focusBlock(b.id)">
+                       @click="focusBlock(b.id); openBlock(b.id)">
                     <span class="ttl" x-text="b.title"></span>
                     <div class="meta">
                       <span x-text="b.duration + 'm'"></span>
@@ -318,7 +338,7 @@
                        :data-type="b.type"
                        draggable="true"
                        @dragstart="dragStart($event, b.id)"
-                       @click="focusBlock(b.id)">
+                       @click="focusBlock(b.id); openBlock(b.id)">
                     <span class="ttl" x-text="'★ ' + b.title + ' (both teams)'"></span>
                     <div class="meta" x-text="b.duration + 'm · ' + locationShort(b.locationId)"></div>
                   </div>
@@ -326,94 +346,6 @@
               </div>
             </div>
           </template>
-        </div>
-      </div>
-
-      <!-- ======== DETAIL STRIP (appears when a block is focused) ======== -->
-      <div class="mt-6" x-show="focusedBlockId" x-transition>
-        <div class="panel p-5" x-data="{ get b() { return blockById(focusedBlockId) }, get ii() { return this.b && this.b.interviewId ? interviewById(this.b.interviewId) : null } }">
-          <div class="grid lg:grid-cols-[1.5fr_1fr] gap-5">
-            <div>
-              <div class="flex items-baseline gap-2 flex-wrap">
-                <div class="stamp" x-text="(BLOCK_TYPES[b?.type]||{}).label + ' · ' + (TEAMS[b?.team]||{}).label"></div>
-                <span class="stamp ok" x-show="b && b.locked">Pinned</span>
-              </div>
-              <h2 class="font-display text-2xl mt-2" x-text="b?.title"></h2>
-              <div class="font-mono text-xs opacity-70 mt-1">
-                <span x-text="b ? dayLabel(b.day) : ''"></span>
-                <span class="opacity-50"> · </span>
-                <span x-text="b ? b.start + ' → ' + addMinutes(b.start, b.duration) + ' (' + b.duration + ' min)' : ''"></span>
-                <template x-if="b?.locationId">
-                  <span><span class="opacity-50"> · </span><span x-text="locationLabel(b.locationId)"></span></span>
-                </template>
-              </div>
-              <p class="text-sm mt-2" x-text="b?.brief" x-show="b?.brief"></p>
-
-              <!-- Interviewee background / contacts / intro email buttons -->
-              <template x-if="ii">
-                <div class="mt-4 border-l-2 border-forest pl-3">
-                  <div class="stamp">Background</div>
-                  <div class="font-display text-lg mt-1" x-text="ii.name"></div>
-                  <div class="text-xs opacity-70" x-text="ii.role"></div>
-                  <p class="text-sm mt-2" x-text="ii.bio"></p>
-                  <p class="text-sm mt-2 opacity-90"><span class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Prep · </span><span x-text="ii.prep"></span></p>
-
-                  <!-- Contacts -->
-                  <div class="mt-3 flex flex-wrap items-center gap-2">
-                    <template x-if="ii.linkedin"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="ii.linkedin" target="_blank" rel="noopener">LinkedIn</a></template>
-                    <template x-if="ii.companyUrl"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="ii.companyUrl" target="_blank" rel="noopener" x-text="(ii.company || 'Company')"></a></template>
-                    <template x-if="ii.email"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="'mailto:' + ii.email" x-text="ii.email"></a></template>
-                  </div>
-
-                  <!-- Intro email drafts -->
-                  <div class="mt-3">
-                    <div class="stamp">Draft intro email</div>
-                    <div class="mt-2 flex flex-wrap gap-2">
-                      <button class="btn !py-1 !px-2 !text-[10px]" @click="draftIntro(ii.id, 'warm_joe')">Warm · Joe</button>
-                      <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="draftIntro(ii.id, 'cold_pk')">Cold · PK</button>
-                      <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="draftIntro(ii.id, 'cold_katie')">Cold · Katie</button>
-                      <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="draftIntro(ii.id, 'confirm')">Confirmation</button>
-                    </div>
-                    <p class="text-[11px] opacity-60 mt-1" x-show="!ii.email">No email on file — your draft will open in Gmail with the To: field blank. Add <code>email</code> in seed.js or the side drawer to pre-fill it.</p>
-                  </div>
-                </div>
-              </template>
-
-              <!-- Actions -->
-              <div class="mt-4 flex flex-wrap gap-2">
-                <button class="btn" @click="openBlock(focusedBlockId)">Edit meeting</button>
-                <button class="btn secondary" @click="downloadIcs(b)">Download .ics</button>
-                <button class="btn secondary" @click="focusedBlockId=null">Dismiss</button>
-              </div>
-            </div>
-
-            <!-- Directions (from previous meeting) -->
-            <div class="border-t lg:border-t-0 lg:border-l border-line lg:pl-5 pt-4 lg:pt-0">
-              <div class="stamp">Directions to this meeting</div>
-              <template x-if="directionsToFocused">
-                <div class="mt-3">
-                  <div class="font-mono text-[11px] opacity-60">From previous</div>
-                  <div class="font-display text-lg mt-1" x-text="directionsToFocused.fromName"></div>
-                  <div class="flex items-baseline gap-3 mt-2">
-                    <div class="font-display text-3xl" x-text="directionsToFocused.minutes + ' min'"></div>
-                    <div class="font-mono text-xs opacity-70" x-show="directionsToFocused.distanceKm" x-text="directionsToFocused.distanceKm + ' km'"></div>
-                  </div>
-                  <div class="font-mono text-[11px] mt-1" :class="directionsToFocused.tight ? 'text-rust' : 'opacity-70'"
-                       x-text="directionsToFocused.tight ? ('▲ Only ' + directionsToFocused.gap + ' min gap — tight') : (directionsToFocused.gap + ' min gap allotted')"></div>
-                  <template x-if="directionsToFocused.osrmNote">
-                    <div class="font-mono text-[10px] opacity-50 mt-1" x-text="directionsToFocused.osrmNote"></div>
-                  </template>
-                  <div class="mt-3 flex flex-wrap gap-2">
-                    <a class="btn secondary !py-1 !px-2 !text-[10px]" :href="directionsToFocused.googleUrl" target="_blank" rel="noopener">Open in Google Maps</a>
-                    <a class="btn secondary !py-1 !px-2 !text-[10px]" :href="directionsToFocused.appleUrl" target="_blank" rel="noopener">Apple Maps</a>
-                  </div>
-                </div>
-              </template>
-              <template x-if="!directionsToFocused">
-                <p class="text-xs opacity-60 mt-3">First meeting of the day (or same location as previous) — no drive.</p>
-              </template>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -476,166 +408,139 @@
       </div>
     </section>
 
-    <!-- ============ LOCK-IN FORM ============ -->
-    <section class="section" x-show="tab==='lock-in'" id="lock-in">
-      <div class="mb-5">
-        <div class="stamp">Lock In Meeting</div>
-        <h1 class="font-display text-3xl mt-2">New meeting · contact form</h1>
-        <p class="text-sm opacity-70 mt-1">Adds a pinned block to the timetable and downloads a .ics you can email to the attendee. If the slot is occupied, an existing block will be bumped to the next free slot in the same lane.</p>
-      </div>
-
-      <form class="grid md:grid-cols-2 gap-4 card" @submit.prevent="submitLockIn">
-        <div>
-          <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Day</label>
-          <select class="select mt-1" x-model="form.day">
-            <option value="mon">Mon · Apr 27 · Community Voices</option>
-            <option value="tue">Tue · Apr 28 · Facility Embed</option>
-            <option value="wed">Wed · Apr 29 · Stories + Mill Tour</option>
-          </select>
-        </div>
-        <div>
-          <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Start time</label>
-          <select class="select mt-1" x-model="form.start">
-            <template x-for="s in timeSlots" :key="s"><option :value="s" x-text="s"></option></template>
-          </select>
-        </div>
-        <div>
-          <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Length</label>
-          <select class="select mt-1" x-model.number="form.duration">
-            <option :value="15">15 min</option>
-            <option :value="30">30 min</option>
-            <option :value="45">45 min</option>
-            <option :value="60">60 min</option>
-          </select>
-        </div>
-        <div>
-          <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Team</label>
-          <select class="select mt-1" x-model="form.team">
-            <option value="pk_jen">PK + Jen (Interviews)</option>
-            <option value="mike_katie">Mike + Katie (Camera + Audio)</option>
-            <option value="both">Both Teams</option>
-          </select>
-        </div>
-        <div class="md:col-span-2">
-          <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Meeting title</label>
-          <input class="input mt-1" x-model="form.title" placeholder="e.g. Andrew Hand — cultivation philosophy" required />
-        </div>
-        <div class="md:col-span-2">
-          <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Attendees</label>
-          <input class="input mt-1" x-model="form.attendees" placeholder="comma-separated — e.g. Andrew Hand, Joe, PK" />
-        </div>
-        <div>
-          <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Location</label>
-          <select class="select mt-1" x-model="form.locationId">
-            <option value="">— none —</option>
-            <template x-for="l in LOCATIONS" :key="l.id"><option :value="l.id" x-text="l.name"></option></template>
-          </select>
-        </div>
-        <div>
-          <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Type</label>
-          <select class="select mt-1" x-model="form.type">
-            <template x-for="(t, key) in BLOCK_TYPES" :key="key"><option :value="key" x-text="t.label"></option></template>
-          </select>
-        </div>
-        <div class="md:col-span-2">
-          <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Short brief</label>
-          <textarea class="textarea mt-1" rows="3" x-model="form.brief" placeholder="Purpose of meeting. What we want to get out of it."></textarea>
-        </div>
-        <div class="md:col-span-2 flex items-center gap-3">
-          <label class="flex items-center gap-2 text-sm">
-            <input type="checkbox" x-model="form.locked" />
-            <span>Lock in (pinned — other meetings will bump around this)</span>
-          </label>
-          <label class="flex items-center gap-2 text-sm">
-            <input type="checkbox" x-model="form.emitIcs" />
-            <span>Download .ics</span>
-          </label>
-          <label class="flex items-center gap-2 text-sm">
-            <input type="checkbox" x-model="form.emitMailto" />
-            <span>Open email draft</span>
-          </label>
-          <div class="flex-1"></div>
-          <button class="btn" type="submit">Lock In</button>
-        </div>
-      </form>
-    </section>
   </main>
 
-  <!-- === Drawer (meeting detail) === -->
-  <template x-if="selectedBlockId">
+  <!-- === Drawer (action item booking console) === -->
+  <template x-if="focusedActionIdx !== null">
     <div>
-      <div class="drawer-backdrop" @click="selectedBlockId=null"></div>
-      <aside class="drawer p-6" x-data="{ b: blockById(selectedBlockId) }">
-        <template x-if="b">
+      <div class="drawer-backdrop" @click="closeAction()"></div>
+      <aside class="drawer p-6" x-data="{
+          get a() { return actions[focusedActionIdx] },
+          get ii() { return this.a && this.a.intervieweeId ? interviewById(this.a.intervieweeId) : null },
+          get existingBlock() { return this.a && this.a.linkedBlockId ? blockById(this.a.linkedBlockId) : (this.ii ? blocks.find(b => b.interviewId === this.ii.id) : null) },
+        }">
+        <template x-if="a">
           <div>
             <div class="flex items-start justify-between">
               <div>
-                <div class="stamp" x-text="(BLOCK_TYPES[b.type]||{}).label + ' · ' + (TEAMS[b.team]||{}).label"></div>
-                <h2 class="font-display text-2xl mt-2" x-text="b.title"></h2>
-                <div class="font-mono text-xs opacity-70 mt-1" x-text="dayLabel(b.day) + ' · ' + b.start + ' → ' + addMinutes(b.start, b.duration) + ' · ' + b.duration + ' min'"></div>
+                <div class="stamp wait" x-show="a.status === 'pending' || a.status === 'in progress'" x-text="a.status"></div>
+                <div class="stamp ok" x-show="a.status === 'confirmed'">Confirmed</div>
+                <div class="stamp" x-show="a.status === 'done'">Done</div>
+                <div class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60 mt-2" x-text="'Owned by ' + a.owner"></div>
+                <h2 class="font-display text-2xl mt-1" x-text="a.text"></h2>
               </div>
-              <button class="btn secondary !px-2 !py-1" @click="selectedBlockId=null">×</button>
+              <button class="btn secondary !px-2 !py-1" @click="closeAction()">×</button>
             </div>
 
-            <div class="mt-5 space-y-4">
-              <div>
-                <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Title</label>
-                <input class="input mt-1" x-model="b.title" @change="saveBlock(b)" />
+            <!-- Interviewee background -->
+            <template x-if="ii">
+              <div class="mt-5 border-l-2 border-forest pl-3">
+                <div class="stamp">Interviewee</div>
+                <div class="font-display text-lg mt-1" x-text="ii.name"></div>
+                <div class="text-xs opacity-70" x-text="ii.role"></div>
+                <p class="text-sm mt-2" x-text="ii.bio"></p>
+                <p class="text-sm mt-2 opacity-90"><span class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Prep · </span><span x-text="ii.prep"></span></p>
+                <div class="mt-3 flex flex-wrap items-center gap-2">
+                  <template x-if="ii.linkedin"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="ii.linkedin" target="_blank" rel="noopener">LinkedIn</a></template>
+                  <template x-if="ii.companyUrl"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="ii.companyUrl" target="_blank" rel="noopener" x-text="ii.company || 'Company'"></a></template>
+                  <template x-if="ii.email"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="'mailto:' + ii.email" x-text="ii.email"></a></template>
+                </div>
+                <div class="mt-3">
+                  <div class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60 mb-1.5">Open intro in Gmail</div>
+                  <div class="flex flex-wrap gap-2">
+                    <button class="btn !py-1 !px-2 !text-[10px]" @click="draftIntro(ii.id, 'warm_joe', existingBlock)">Warm · Joe</button>
+                    <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="draftIntro(ii.id, 'cold_pk', existingBlock)">Cold · PK</button>
+                    <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="draftIntro(ii.id, 'cold_katie', existingBlock)">Cold · Katie</button>
+                    <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="draftIntro(ii.id, 'confirm', existingBlock)">Confirmation</button>
+                  </div>
+                </div>
               </div>
-              <div class="grid grid-cols-2 gap-3">
+            </template>
+
+            <!-- Proposed / existing booking -->
+            <div class="mt-5 border-t border-line pt-4">
+              <div class="flex items-center justify-between">
+                <div class="stamp">Proposed booking</div>
+                <template x-if="existingBlock">
+                  <span class="font-mono text-[10px] opacity-60">Linked to block</span>
+                </template>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 mt-2">
+                <div>
+                  <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Day</label>
+                  <select class="select mt-1" x-model="actionForm.day">
+                    <option value="mon">Mon · Apr 27</option>
+                    <option value="tue">Tue · Apr 28</option>
+                    <option value="wed">Wed · Apr 29</option>
+                  </select>
+                </div>
                 <div>
                   <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Start</label>
-                  <select class="select mt-1" x-model="b.start" @change="saveBlock(b)">
+                  <select class="select mt-1" x-model="actionForm.start">
                     <template x-for="s in timeSlots" :key="s"><option :value="s" x-text="s"></option></template>
                   </select>
                 </div>
                 <div>
                   <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Length</label>
-                  <select class="select mt-1" x-model.number="b.duration" @change="saveBlock(b)">
-                    <option :value="15">15</option><option :value="30">30</option>
-                    <option :value="45">45</option><option :value="60">60</option>
-                    <option :value="90">90</option><option :value="120">120</option>
+                  <select class="select mt-1" x-model.number="actionForm.duration">
+                    <option :value="15">15 min</option>
+                    <option :value="30">30 min</option>
+                    <option :value="45">45 min</option>
+                    <option :value="60">60 min</option>
                   </select>
                 </div>
-              </div>
-              <div>
-                <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Team</label>
-                <select class="select mt-1" x-model="b.team" @change="saveBlock(b)">
-                  <option value="pk_jen">PK + Jen</option>
-                  <option value="mike_katie">Mike + Katie</option>
-                  <option value="both">Both Teams</option>
-                </select>
-              </div>
-              <div>
-                <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Location</label>
-                <select class="select mt-1" x-model="b.locationId" @change="saveBlock(b)">
-                  <option value="">—</option>
-                  <template x-for="l in LOCATIONS" :key="l.id"><option :value="l.id" x-text="l.name"></option></template>
-                </select>
-              </div>
-              <div>
-                <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Attendees</label>
-                <input class="input mt-1" x-model="b.attendees" @change="saveBlock(b)" />
-              </div>
-              <div>
-                <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Brief</label>
-                <textarea class="textarea mt-1" rows="4" x-model="b.brief" @change="saveBlock(b)"></textarea>
-              </div>
-              <template x-if="b.interviewId">
-                <div class="border-l-2 border-forest pl-3">
-                  <div class="stamp">Interviewee bio</div>
-                  <p class="text-sm mt-2" x-text="interviewById(b.interviewId)?.bio"></p>
-                  <p class="text-sm mt-2 opacity-80"><span class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Prep · </span><span x-text="interviewById(b.interviewId)?.prep"></span></p>
+                <div>
+                  <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Team</label>
+                  <select class="select mt-1" x-model="actionForm.team">
+                    <option value="pk_jen">PK + Jen</option>
+                    <option value="mike_katie">Mike + Katie</option>
+                    <option value="both">Both Teams</option>
+                  </select>
                 </div>
-              </template>
-              <div class="flex items-center gap-3 pt-3 border-t border-line">
-                <label class="flex items-center gap-2 text-sm">
-                  <input type="checkbox" x-model="b.locked" @change="saveBlock(b)" />
-                  <span>Pinned (won't be moved)</span>
-                </label>
-                <div class="flex-1"></div>
-                <button class="btn secondary" @click="downloadIcs(b)">Download .ics</button>
-                <button class="btn blood" @click="deleteBlock(b)">Delete</button>
+                <div class="col-span-2">
+                  <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Location</label>
+                  <select class="select mt-1" x-model="actionForm.locationId">
+                    <option value="">—</option>
+                    <template x-for="l in LOCATIONS" :key="l.id"><option :value="l.id" x-text="l.name"></option></template>
+                  </select>
+                </div>
+                <div class="col-span-2">
+                  <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Brief / title</label>
+                  <input class="input mt-1" x-model="actionForm.title" />
+                </div>
+              </div>
+
+              <!-- Conflict check -->
+              <div class="mt-3" x-show="actionConflicts.length > 0">
+                <div class="stamp warn">▲ Conflicts at <span x-text="actionForm.start"></span></div>
+                <ul class="mt-2 divide-y divide-line/40 text-sm">
+                  <template x-for="c in actionConflicts" :key="c.id">
+                    <li class="py-2 flex items-center gap-2">
+                      <span class="font-mono text-[11px] opacity-70" x-text="c.start + '–' + addMinutes(c.start, c.duration)"></span>
+                      <span class="flex-1" x-text="c.title"></span>
+                      <span class="stamp" x-text="(TEAMS[c.team]||{}).label || c.team"></span>
+                      <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="bumpConflict(c.id)">Bump</button>
+                    </li>
+                  </template>
+                </ul>
+              </div>
+
+              <!-- Suggested slots (when conflict) -->
+              <div class="mt-3" x-show="actionConflicts.length > 0 && suggestedSlots.length > 0">
+                <div class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60 mb-1.5">Or pick a free slot</div>
+                <div class="flex flex-wrap gap-1.5">
+                  <template x-for="s in suggestedSlots" :key="s">
+                    <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="actionForm.start = s" x-text="s"></button>
+                  </template>
+                </div>
+              </div>
+
+              <div class="mt-4 flex flex-wrap gap-2">
+                <button class="btn" @click="confirmAction()" :disabled="actionConflicts.length > 0" x-text="existingBlock ? 'Update + Confirm' : 'Create + Confirm'"></button>
+                <button class="btn blood" @click="confirmAction(true)" x-show="actionConflicts.length > 0">Force (bump conflicts)</button>
+                <button class="btn secondary" @click="markActionDone()" x-show="existingBlock && a.status !== 'done'">Mark done</button>
+                <button class="btn secondary" @click="undoMove()" x-show="moveHistory.length > 0">Undo last move</button>
               </div>
             </div>
           </div>
@@ -643,6 +548,161 @@
       </aside>
     </div>
   </template>
+
+  <!-- === Drawer (meeting detail — full brief, bio, directions, notes, .ics) === -->
+  <template x-if="selectedBlockId">
+    <div>
+      <div class="drawer-backdrop" @click="selectedBlockId=null"></div>
+      <aside class="drawer p-6" x-data="{
+          get b() { return blockById(selectedBlockId) },
+          get ii() { return this.b && this.b.interviewId ? interviewById(this.b.interviewId) : null },
+        }">
+        <template x-if="b">
+          <div>
+            <div class="flex items-start justify-between">
+              <div>
+                <div class="stamp" x-text="(BLOCK_TYPES[b.type]||{}).label + ' · ' + (TEAMS[b.team]||{}).label"></div>
+                <span class="stamp ok" x-show="b.locked">Pinned</span>
+                <h2 class="font-display text-2xl mt-2" x-text="b.title"></h2>
+                <div class="font-mono text-xs opacity-70 mt-1" x-text="dayLabel(b.day) + ' · ' + b.start + ' → ' + addMinutes(b.start, b.duration) + ' · ' + b.duration + ' min'"></div>
+                <div class="font-mono text-xs opacity-70 mt-0.5" x-show="b.locationId" x-text="'@ ' + locationLabel(b.locationId)"></div>
+              </div>
+              <button class="btn secondary !px-2 !py-1" @click="selectedBlockId=null">×</button>
+            </div>
+
+            <!-- Interviewee bio + contact + intro templates -->
+            <template x-if="ii">
+              <div class="mt-5 border-l-2 border-forest pl-3">
+                <div class="stamp">Background</div>
+                <div class="font-display text-lg mt-1" x-text="ii.name"></div>
+                <div class="text-xs opacity-70" x-text="ii.role"></div>
+                <p class="text-sm mt-2" x-text="ii.bio"></p>
+                <p class="text-sm mt-2 opacity-90"><span class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Prep · </span><span x-text="ii.prep"></span></p>
+                <div class="mt-3 flex flex-wrap items-center gap-2">
+                  <template x-if="ii.linkedin"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="ii.linkedin" target="_blank" rel="noopener">LinkedIn</a></template>
+                  <template x-if="ii.companyUrl"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="ii.companyUrl" target="_blank" rel="noopener" x-text="ii.company || 'Company'"></a></template>
+                  <template x-if="ii.email"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="'mailto:' + ii.email" x-text="ii.email"></a></template>
+                </div>
+                <div class="mt-3 flex flex-wrap gap-2">
+                  <button class="btn !py-1 !px-2 !text-[10px]" @click="draftIntro(ii.id, 'warm_joe', b)">Warm · Joe</button>
+                  <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="draftIntro(ii.id, 'cold_pk', b)">Cold · PK</button>
+                  <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="draftIntro(ii.id, 'cold_katie', b)">Cold · Katie</button>
+                  <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="draftIntro(ii.id, 'confirm', b)">Confirmation</button>
+                </div>
+              </div>
+            </template>
+
+            <!-- Directions from previous block -->
+            <template x-if="directionsToFocused">
+              <div class="mt-5 border-t border-line pt-4">
+                <div class="stamp">Directions to here</div>
+                <div class="mt-2">
+                  <div class="font-mono text-[11px] opacity-60">From previous</div>
+                  <div class="font-display text-lg" x-text="directionsToFocused.fromName"></div>
+                  <div class="flex items-baseline gap-3 mt-1">
+                    <div class="font-display text-2xl" x-text="directionsToFocused.minutes + ' min'"></div>
+                    <div class="font-mono text-xs opacity-70" x-show="directionsToFocused.distanceKm" x-text="directionsToFocused.distanceKm + ' km'"></div>
+                  </div>
+                  <div class="font-mono text-[11px] mt-1" :class="directionsToFocused.tight ? 'text-rust' : 'opacity-70'"
+                       x-text="directionsToFocused.tight ? ('▲ Only ' + directionsToFocused.gap + ' min gap — tight') : (directionsToFocused.gap + ' min gap allotted')"></div>
+                  <div class="mt-2 flex flex-wrap gap-2">
+                    <a class="btn secondary !py-1 !px-2 !text-[10px]" :href="directionsToFocused.googleUrl" target="_blank" rel="noopener">Google Maps</a>
+                    <a class="btn secondary !py-1 !px-2 !text-[10px]" :href="directionsToFocused.appleUrl" target="_blank" rel="noopener">Apple Maps</a>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- Notes + voice capture -->
+            <div class="mt-5 border-t border-line pt-4">
+              <div class="flex items-center justify-between">
+                <div class="stamp">Field notes</div>
+                <div class="flex items-center gap-2">
+                  <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="toggleRecording(b.id)" x-text="recording.blockId === b.id ? '■ Stop' : '● Record'"></button>
+                  <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="appendTimestampToNotes(b)">+ Timestamp</button>
+                </div>
+              </div>
+              <p class="text-[11px] opacity-60 mt-1" x-show="recording.blockId === b.id">Recording… speak naturally; text appears below. Chrome/Edge only.</p>
+              <p class="text-[11px] opacity-60 mt-1" x-show="recording.blockId !== b.id && !recording.supported">Voice capture needs Chrome/Edge. Paste your phone transcript below instead.</p>
+              <textarea class="textarea mt-2" rows="8"
+                        x-model="b.notes"
+                        @change="saveBlock(b)"
+                        placeholder="Paste voice-note transcripts here. They export to CSV (Logistics tab)."></textarea>
+            </div>
+
+            <!-- Edit fields (collapsed by default, expandable) -->
+            <div class="mt-5 border-t border-line pt-4" x-data="{ expanded: false }">
+              <div class="flex items-center justify-between">
+                <div class="stamp">Edit</div>
+                <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="expanded = !expanded" x-text="expanded ? 'Collapse' : 'Expand'"></button>
+              </div>
+              <div class="mt-3 space-y-3" x-show="expanded" x-transition>
+                <div>
+                  <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Title</label>
+                  <input class="input mt-1" x-model="b.title" @change="saveBlock(b)" />
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Start</label>
+                    <select class="select mt-1" x-model="b.start" @change="recordAndSave(b)">
+                      <template x-for="s in timeSlots" :key="s"><option :value="s" x-text="s"></option></template>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Length</label>
+                    <select class="select mt-1" x-model.number="b.duration" @change="saveBlock(b)">
+                      <option :value="15">15</option><option :value="30">30</option>
+                      <option :value="45">45</option><option :value="60">60</option>
+                      <option :value="90">90</option><option :value="120">120</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Team</label>
+                  <select class="select mt-1" x-model="b.team" @change="recordAndSave(b)">
+                    <option value="pk_jen">PK + Jen</option>
+                    <option value="mike_katie">Mike + Katie</option>
+                    <option value="both">Both Teams</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Location</label>
+                  <select class="select mt-1" x-model="b.locationId" @change="saveBlock(b)">
+                    <option value="">—</option>
+                    <template x-for="l in LOCATIONS" :key="l.id"><option :value="l.id" x-text="l.name"></option></template>
+                  </select>
+                </div>
+                <div>
+                  <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Attendees</label>
+                  <input class="input mt-1" x-model="b.attendees" @change="saveBlock(b)" />
+                </div>
+                <div>
+                  <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Brief</label>
+                  <textarea class="textarea mt-1" rows="3" x-model="b.brief" @change="saveBlock(b)"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3 pt-4 mt-4 border-t border-line">
+              <label class="flex items-center gap-2 text-sm">
+                <input type="checkbox" x-model="b.locked" @change="saveBlock(b)" />
+                <span>Pinned</span>
+              </label>
+              <div class="flex-1"></div>
+              <button class="btn secondary" @click="undoMove()" x-show="moveHistory.length > 0">Undo last</button>
+              <button class="btn secondary" @click="downloadIcs(b)">.ics</button>
+              <button class="btn blood" @click="deleteBlock(b)">Delete</button>
+            </div>
+          </div>
+        </template>
+      </aside>
+    </div>
+  </template>
+
+  <!-- Floating Undo button (shows only when moveHistory has entries) -->
+  <div class="undo-bar no-print" x-show="moveHistory.length > 0 && !selectedBlockId && focusedActionIdx === null" x-transition>
+    <button class="btn" @click="undoMove()">↶ Undo <span class="font-mono text-[10px] opacity-70" x-text="'(' + moveHistory.length + ')'"></span></button>
+  </div>
 
   <!-- Toast -->
   <div class="toast" x-show="toast" x-transition x-text="toast"></div>

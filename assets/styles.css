@@ -324,6 +324,31 @@ html, body {
   padding-top: 0.2rem;
 }
 
+/* Action-items row */
+.action-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid var(--sm-line);
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.action-row:last-child { border-bottom: none; }
+.action-row:hover { background: rgba(43, 58, 46, 0.04); }
+.action-row--open {
+  background: rgba(43, 58, 46, 0.08);
+  box-shadow: inset 3px 0 0 var(--sm-forest);
+}
+
+/* Floating Undo button (when moveHistory is non-empty) */
+.undo-bar {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 50;
+}
+
 /* Ribbon banner */
 .ribbon {
   background: var(--sm-forest);
@@ -363,6 +388,21 @@ html, body {
   align-items: center;
   justify-content: center;
   line-height: 1;
+}
+
+/* HOME marker — the Airbnb, start of every day */
+.home-dot {
+  width: 26px; height: 26px;
+  border-radius: 4px;
+  background: #1F1F1F;
+  border: 2px solid #C9A270;
+  color: #F5F1EA;
+  font-size: 16px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
 }
 
 /* Pulsing focused marker */

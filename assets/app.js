@@ -55,6 +55,7 @@ function trip() {
     selectedBlockId: null,      // opens edit drawer
     focusedBlockId: null,       // detail strip + map focus (light-weight)
     toast: null,
+    toastIsSuccess: false,
     toastTimer: null,
 
     // drag
@@ -157,6 +158,78 @@ function trip() {
     addLocationForAction() { this.openNewLocation('action'); },
     addLocationForBlock(b) { if (b) this.openNewLocation('block', b.id); },
     TEAMS: window.TEAMS,
+
+    // ---- Delight: contextual greeting + ferry countdown + easter egg ----
+    // Returns a short line that changes with the Pacific-Time hour. Shown in
+    // the ribbon as a warmth check-in.
+    get contextLine() {
+      const pt = this._pacificTimeNow();
+      if (!pt) return '';
+      const h = pt.h;
+      const dayKey = this._tripDayKey(pt);
+      const dayLabel = dayKey ? this.dayLabel(dayKey).split('·').slice(-1)[0].trim() : '';
+      if (pt.d === 30 && h < 7) {
+        return `Pre-ferry · ${String(h).padStart(2,'0')}:${String(pt.m).padStart(2,'0')} PT`;
+      }
+      if (h < 5)  return `Late night · ${String(h).padStart(2,'0')}:${String(pt.m).padStart(2,'0')} PT`;
+      if (h < 9)  return `Morning · ${dayLabel || 'Powell River'}`;
+      if (h < 12) return `${dayLabel ? dayLabel + ' · ' : ''}${String(h).padStart(2,'0')}:${String(pt.m).padStart(2,'0')} PT`;
+      if (h < 14) return `Mid-day · ${dayLabel || 'Powell River'}`;
+      if (h < 18) return `${dayLabel ? dayLabel + ' · ' : ''}${String(h).padStart(2,'0')}:${String(pt.m).padStart(2,'0')} PT`;
+      if (h < 21) return `Golden hour · ${String(h).padStart(2,'0')}:${String(pt.m).padStart(2,'0')} PT`;
+      return `After hours · ${String(h).padStart(2,'0')}:${String(pt.m).padStart(2,'0')} PT`;
+    },
+
+    get ferryCountdown() {
+      const pt = this._pacificTimeNow();
+      if (!pt) return null;
+      const target = Date.UTC(2026, 3, 30, 6 + 7, 25);  // Apr 30 06:25 PT = 13:25 UTC
+      const nowUtc = Date.now();
+      const diffMin = Math.floor((target - nowUtc) / 60000);
+      if (diffMin < -30 || diffMin > 24 * 60) return null;
+      if (diffMin <= 0) return { diffMin, label: 'Sailing now', urgent: true };
+      const hours = Math.floor(diffMin / 60);
+      const minutes = diffMin % 60;
+      const label = hours > 0 ? `${hours}h ${String(minutes).padStart(2,'0')}m` : `${minutes}m`;
+      return { diffMin, hours, minutes, label, urgent: diffMin < 180 };
+    },
+
+    _pacificTimeNow() {
+      const now = new Date();
+      const pt = new Date(now.getTime() - 7 * 60 * 60 * 1000);
+      return { M: pt.getUTCMonth() + 1, d: pt.getUTCDate(), h: pt.getUTCHours(), m: pt.getUTCMinutes() };
+    },
+    _tripDayKey(pt) {
+      if (pt.M !== 4) return null;
+      return ({ 26: 'sun', 27: 'mon', 28: 'tue', 29: 'wed', 30: 'thu' })[pt.d] || null;
+    },
+
+    // Easter egg: long-press the logo to surface a field mantra.
+    mantra: '',
+    _mantras: [
+      "The landscape is an actor.",
+      "Chase the true-ish.",
+      "Stories over opinions.",
+      "Capture the sentence, not the paragraph.",
+      "The bar and the porch are fieldwork.",
+      "Every place has a secret history.",
+      "The awareness gap is the finding.",
+    ],
+    _mantraTimer: null,
+    _pressStart: 0,
+    _pressTimer: null,
+    logoPressDown() {
+      this._pressStart = Date.now();
+      if (this._pressTimer) clearTimeout(this._pressTimer);
+      this._pressTimer = setTimeout(() => {
+        this.mantra = this._mantras[Math.floor(Math.random() * this._mantras.length)];
+        if (this._mantraTimer) clearTimeout(this._mantraTimer);
+        this._mantraTimer = setTimeout(() => { this.mantra = ''; }, 4500);
+      }, 600);
+    },
+    logoPressUp() {
+      if (this._pressTimer) { clearTimeout(this._pressTimer); this._pressTimer = null; }
+    },
     BLOCK_TYPES: window.BLOCK_TYPES,
     NON_NEGOTIABLES: window.NON_NEGOTIABLES,
     logistics: window.LOGISTICS,
@@ -291,8 +364,11 @@ function trip() {
 
     showToast(text, ms = 2600) {
       this.toast = text;
+      // Heuristic: success-y toasts start with or contain these verbs.
+      // They get the animated check glyph.
+      this.toastIsSuccess = /^(Confirmed|Locked in|Swapped|Bumped|Pushed|Undone|Added|Saved|Exported|Reset)/i.test(text);
       if (this.toastTimer) clearTimeout(this.toastTimer);
-      this.toastTimer = setTimeout(() => { this.toast = null; }, ms);
+      this.toastTimer = setTimeout(() => { this.toast = null; this.toastIsSuccess = false; }, ms);
     },
 
     // ---- derived data ----

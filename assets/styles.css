@@ -239,7 +239,17 @@ table td, table th {
   vertical-align: middle;
   opacity: 0.8;
 }
-.tt-block.dragging { opacity: 0.55; cursor: grabbing; }
+.tt-block.dragging {
+  opacity: 0.55;
+  cursor: grabbing;
+  transform: scale(1.03) rotate(-0.4deg);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.14);
+  z-index: 8;
+}
+.tt-block[draggable="true"]:active {
+  transform: scale(1.02);
+  transition: transform 80ms ease-out;
+}
 .tt-block:hover { box-shadow: 0 2px 6px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.08); }
 .tt-block .ttl {
   font-family: 'Fraunces', Georgia, serif;
@@ -566,6 +576,115 @@ table td, table th {
   bottom: 24px;
   right: 24px;
   z-index: 50;
+}
+
+/* Ferry countdown pill — appears in the final 24h before Thu 06:25 */
+.ferry-pill {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 50;
+  background: var(--sm-paper);
+  border-left: 3px solid var(--sm-forest);
+  padding: 0.75rem 1rem;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  border-radius: 2px;
+  min-width: 220px;
+  transition: box-shadow 200ms ease;
+}
+.ferry-pill__label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-mono);
+  opacity: 0.65;
+}
+.ferry-pill__time {
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  font-weight: 500;
+  line-height: 1;
+  margin-top: 0.25rem;
+  color: var(--sm-ink);
+  font-variant-numeric: tabular-nums;
+}
+.ferry-pill__hint {
+  font-size: 0.78rem;
+  color: var(--sm-ink-2);
+  margin-top: 0.3rem;
+  max-width: 20ch;
+  line-height: 1.3;
+}
+.ferry-pill--urgent {
+  border-left-color: var(--sm-rust);
+  animation: ferry-pulse 2.6s ease-out infinite;
+}
+@keyframes ferry-pulse {
+  0%, 100% { box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+  50%      { box-shadow: 0 10px 28px rgba(160, 70, 42, 0.30); }
+}
+
+/* Logo badge — click-hold target for the mantra reveal */
+.logo-badge {
+  display: inline-flex;
+  align-items: baseline;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  padding: 2px 0;
+  transition: opacity 120ms ease;
+}
+.logo-badge:active { opacity: 0.85; }
+
+/* Mantra pop — shows on long-press, fades in/out */
+.mantra-pop {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2100;
+  background: var(--sm-ink);
+  color: var(--sm-paper);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 1.3rem;
+  padding: 0.8rem 1.3rem;
+  border-radius: 2px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  max-width: 80vw;
+  text-align: center;
+  font-weight: 450;
+  letter-spacing: -0.005em;
+}
+
+/* Animated checkmark for success toasts */
+@keyframes check-draw {
+  from { stroke-dashoffset: 22; }
+  to   { stroke-dashoffset: 0; }
+}
+.toast-check {
+  display: inline-block;
+  width: 14px; height: 14px;
+  vertical-align: -2px;
+  margin-right: 0.4rem;
+}
+.toast-check path {
+  stroke: currentColor;
+  stroke-width: 2.2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 22;
+  stroke-dashoffset: 22;
+  animation: check-draw 360ms ease-out 120ms forwards;
+}
+
+/* Respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .tt-block.dragging, .tt-block[draggable="true"]:active { transform: none !important; }
+  .ferry-pill--urgent { animation: none; }
+  .toast-check path { animation: none; stroke-dashoffset: 0; }
+  .pulse-dot { animation: none; }
 }
 
 /* Day picker — horizontal strip, no-wrap, scrollable on narrow screens */

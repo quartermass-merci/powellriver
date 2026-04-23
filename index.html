@@ -58,17 +58,24 @@
 
   <!-- === Ribbon === -->
   <header class="ribbon flex items-center justify-between no-print">
-    <div>
-      <span class="font-display">MERIDIAN 125W</span>
-      <span class="pipe">×</span>
-      <span class="font-display italic">Sister Merci</span>
-      <span class="pipe">·</span>
-      <span class="font-mono text-[11px] tracking-[0.2em] uppercase opacity-80">Field Planner · Apr 26–30</span>
+    <div class="flex items-baseline gap-3 flex-wrap">
+      <span class="logo-badge"
+            @mousedown="logoPressDown()" @mouseup="logoPressUp()" @mouseleave="logoPressUp()"
+            @touchstart.prevent="logoPressDown()" @touchend="logoPressUp()"
+            title="Hold for a field mantra">
+        <span class="font-display">MERIDIAN 125W</span>
+        <span class="pipe">×</span>
+        <span class="font-display italic">Sister Merci</span>
+      </span>
+      <span class="font-mono text-[11px] tracking-[0.2em] uppercase opacity-75" x-text="contextLine"></span>
     </div>
     <div class="flex items-center gap-3 text-[11px] font-mono uppercase tracking-[0.15em]">
       <span><span :class="'conn-dot ' + connState"></span><span x-text="connState === 'live' ? 'Live' : connState === 'local' ? 'Local only' : 'Connecting'"></span></span>
     </div>
   </header>
+
+  <!-- Mantra reveal on long-press of the logo -->
+  <div class="mantra-pop" x-show="mantra" x-transition x-text="mantra"></div>
 
   <!-- === Nav === -->
   <nav class="border-b border-line bg-paper sticky top-0 z-30 no-print">
@@ -140,7 +147,12 @@
                 </div>
               </template>
               <template x-if="peopleByStatus(status).length === 0">
-                <div class="text-xs opacity-50 p-4 italic">Nothing here yet.</div>
+                <div class="text-xs opacity-55 p-4 italic">
+                  <span x-show="status === 'pending'">Nothing pending. Breathe.</span>
+                  <span x-show="status === 'in progress'">Nobody in the middle of a reply. Good.</span>
+                  <span x-show="status === 'confirmed'">Nothing locked in yet. Start up top.</span>
+                  <span x-show="status === 'done'">No wrap-ups yet. They'll land here as the week closes.</span>
+                </div>
               </template>
             </div>
           </div>
@@ -1277,8 +1289,20 @@
     <button class="btn" @click="undoMove()">↶ Undo <span class="font-mono text-[10px] opacity-70" x-text="'(' + moveHistory.length + ')'"></span></button>
   </div>
 
-  <!-- Toast -->
-  <div class="toast" x-show="toast" x-transition x-text="toast"></div>
+  <!-- Ferry countdown — surfaces in the final 24h before Thu 06:25 Saltery Bay -->
+  <div class="ferry-pill no-print" x-show="ferryCountdown" :class="ferryCountdown && ferryCountdown.urgent ? 'ferry-pill--urgent' : ''" x-transition>
+    <div class="ferry-pill__label">Saltery Bay · 06:25</div>
+    <div class="ferry-pill__time" x-text="ferryCountdown ? ferryCountdown.label : ''"></div>
+    <div class="ferry-pill__hint">until departure. The day hinges on it.</div>
+  </div>
+
+  <!-- Toast — success toasts get an animated check that draws in -->
+  <div class="toast" x-show="toast" x-transition>
+    <template x-if="toastIsSuccess">
+      <svg class="toast-check" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5 L6 11 L12 3"/></svg>
+    </template>
+    <span x-text="toast"></span>
+  </div>
 
   <style>[x-cloak]{display:none !important;}</style>
 </body>

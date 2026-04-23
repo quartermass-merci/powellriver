@@ -513,7 +513,7 @@
       </div>
 
       <!-- Tier 2A (employees) -->
-      <div class="card mb-5" x-data="{ open: false }">
+      <div class="card mb-5" x-data="{ open: true }">
         <div class="flex items-center justify-between cursor-pointer" @click="open = !open">
           <div>
             <div class="font-display text-xl">Tier 2A · Meridian employees</div>
@@ -538,7 +538,7 @@
       </div>
 
       <!-- Tier 2B (community / external) -->
-      <div class="card mb-5" x-data="{ open: false }">
+      <div class="card mb-5" x-data="{ open: true }">
         <div class="flex items-center justify-between cursor-pointer" @click="open = !open">
           <div>
             <div class="font-display text-xl">Tier 2B · External + community</div>
@@ -569,7 +569,7 @@
       </div>
 
       <!-- Story Layer -->
-      <div class="card mb-5" x-data="{ open: false }">
+      <div class="card mb-5" x-data="{ open: true }">
         <div class="flex items-center justify-between cursor-pointer" @click="open = !open">
           <div>
             <div class="font-display text-xl" style="color:var(--sm-rust)">Story layer, always on</div>
@@ -757,7 +757,7 @@
                 <div class="col-span-2">
                   <div class="flex items-baseline justify-between">
                     <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Location</label>
-                    <button type="button" class="btn-text !text-[10px]" @click="const id = addCustomLocation(); if (id) actionForm.locationId = id">+ Add new location</button>
+                    <button type="button" class="btn-text !text-[11px]" @click="addLocationForAction()">+ Add new location</button>
                   </div>
                   <select class="select mt-1" x-model="actionForm.locationId">
                     <option value="">—</option>
@@ -1011,7 +1011,7 @@
                 <div>
                   <div class="flex items-baseline justify-between">
                     <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Location</label>
-                    <button type="button" class="btn-text !text-[10px]" @click="const id = addCustomLocation(); if (id) { b.locationId = id; saveBlock(b) }">+ Add new</button>
+                    <button type="button" class="btn-text !text-[11px]" @click="addLocationForBlock(b)">+ Add new</button>
                   </div>
                   <select class="select mt-1" x-model="b.locationId" @change="saveBlock(b)">
                     <option value="">—</option>

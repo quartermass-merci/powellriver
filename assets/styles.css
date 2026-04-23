@@ -14,12 +14,29 @@
   --sm-blood: #6B1D1D;
 }
 
+html {
+  /* Base size bumped from browser default 16 to 17 so everything keyed off
+     rem scales up together. Each step below uses rem or relative sizes. */
+  font-size: 17px;
+}
+@media (min-width: 1280px) {
+  html { font-size: 18px; }
+}
+
+/* Bump the very small Tailwind pixel-fixed text utilities so that tiny labels
+   and stamps render at readable sizes regardless of the rem scale. */
+.text-\[10px\] { font-size: 12px !important; }
+.text-\[11px\] { font-size: 13px !important; }
+.text-\[9px\]  { font-size: 11px !important; }
+.text-xs       { font-size: 0.82rem !important; line-height: 1.45; }
+
 html, body {
   background: var(--sm-bone);
   color: var(--sm-ink);
   font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
   font-feature-settings: "ss01", "cv11";
   -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
 }
 
 .font-display {
@@ -31,13 +48,13 @@ html, body {
 
 .font-mono-sm {
   font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   letter-spacing: 0.02em;
 }
 
 .tick {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.7rem;
+  font-size: 0.76rem;
   color: var(--sm-ink-2);
   opacity: 0.55;
 }
@@ -79,12 +96,12 @@ html, body {
 .stamp {
   display: inline-block;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.62rem;
+  font-size: 0.72rem;
   text-transform: uppercase;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.16em;
   color: var(--sm-ink-2);
   border: 1px solid currentColor;
-  padding: 0.15rem 0.4rem;
+  padding: 0.2rem 0.5rem;
   border-radius: 1px;
   line-height: 1.2;
 }
@@ -110,9 +127,9 @@ html, body {
 }
 .tt-axis {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   color: var(--sm-ink-2);
-  padding: 0.2rem 0.4rem;
+  padding: 0.2rem 0.45rem;
   border-right: 1px solid var(--sm-line);
   border-top: 1px solid rgba(0,0,0,0.04);
   background: var(--sm-bone);
@@ -147,8 +164,8 @@ html, body {
   box-shadow: 0 1px 0 rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.06);
   cursor: grab;
   overflow: hidden;
-  font-size: 0.78rem;
-  line-height: 1.15;
+  font-size: 0.86rem;
+  line-height: 1.2;
   border-radius: 1px;
   transition: transform 60ms ease, box-shadow 120ms ease;
 }
@@ -166,7 +183,7 @@ html, body {
 .tt-block .ttl {
   font-family: 'Fraunces', Georgia, serif;
   font-weight: 520;
-  font-size: 0.88rem;
+  font-size: 0.98rem;
   letter-spacing: -0.005em;
   color: var(--sm-ink);
   display: block;
@@ -177,8 +194,8 @@ html, body {
 .tt-block .meta {
   color: var(--sm-ink-2);
   opacity: 0.78;
-  font-size: 0.68rem;
-  margin-top: 2px;
+  font-size: 0.76rem;
+  margin-top: 3px;
 }
 .tt-block.warn-travel {
   box-shadow: 0 1px 0 rgba(0,0,0,0.06), 0 0 0 1px rgba(160,70,42,0.45);
@@ -256,10 +273,11 @@ html, body {
   width: 100%;
   background: var(--sm-bone);
   border: 1px solid var(--sm-line);
-  padding: 0.5rem 0.65rem;
-  font-size: 0.85rem;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.95rem;
   color: var(--sm-ink);
   border-radius: 2px;
+  line-height: 1.35;
 }
 .input:focus, .select:focus, .textarea:focus {
   outline: none;
@@ -271,13 +289,13 @@ html, body {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.55rem 0.9rem;
+  padding: 0.6rem 1rem;
   background: var(--sm-ink);
   color: var(--sm-paper);
-  font-size: 0.78rem;
+  font-size: 0.86rem;
   font-family: 'JetBrains Mono', monospace;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   border-radius: 1px;
   border: 1px solid var(--sm-ink);
   cursor: pointer;
@@ -298,7 +316,7 @@ html, body {
   border: none;
   padding: 0.35rem 0.25rem;
   color: var(--sm-ink-2);
-  font-size: 0.82rem;
+  font-size: 0.92rem;
   cursor: pointer;
   border-bottom: 1px solid transparent;
   transition: color 100ms ease, border-color 100ms ease;
@@ -388,15 +406,16 @@ html, body {
 
 .action-row .who {
   font-family: 'Fraunces', Georgia, serif;
-  font-size: 0.98rem;
+  font-size: 1.15rem;
   font-weight: 500;
   color: var(--sm-ink);
-  line-height: 1.2;
+  line-height: 1.25;
 }
 .action-row .ask {
-  font-size: 0.82rem;
+  font-size: 0.95rem;
   color: var(--sm-ink-2);
-  margin-top: 0.15rem;
+  margin-top: 0.25rem;
+  line-height: 1.4;
 }
 
 /* Drawer collapsible chevron */
@@ -472,9 +491,9 @@ html, body {
 .slot-pill {
   display: inline-flex;
   align-items: center;
-  padding: 0.3rem 0.55rem;
+  padding: 0.35rem 0.6rem;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   letter-spacing: 0.03em;
   color: var(--sm-ink-2);
   background: var(--sm-paper);

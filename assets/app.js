@@ -113,6 +113,17 @@ function trip() {
     _syncCustomToGlobal() {
       window._CUSTOM_LOCATIONS = this.customLocations.slice();
     },
+
+    // Helpers used by "+ Add new location" buttons (Alpine can't do `const`
+    // inside an inline @click expression — needs to be a regular method).
+    addLocationForAction() {
+      const id = this.addCustomLocation();
+      if (id) this.actionForm.locationId = id;
+    },
+    addLocationForBlock(b) {
+      const id = this.addCustomLocation();
+      if (id && b) { b.locationId = id; this.saveBlock(b); }
+    },
     TEAMS: window.TEAMS,
     BLOCK_TYPES: window.BLOCK_TYPES,
     NON_NEGOTIABLES: window.NON_NEGOTIABLES,

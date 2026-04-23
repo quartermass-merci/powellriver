@@ -173,6 +173,93 @@ function trip() {
     // (Older bindings — kept as fallbacks but the inline form is preferred.)
     addLocationForAction() { this.openNewLocation('action'); },
     addLocationForBlock(b) { if (b) this.openNewLocation('block', b.id); },
+
+    // ---- The Weird & The Eerie ----
+    WEIRD_LAYERS: window.WEIRD_LAYERS || {},
+    WEIRD_EVENTS: window.WEIRD_EVENTS || [],
+    WEIRD_TIMELINE_DECADES: window.WEIRD_TIMELINE_DECADES || [],
+    weirdActiveLayers: { sky: true, high: true, lake: true, valleys: true, trails: true, townsite: true, strait: true },
+    weirdSelected: null,
+    _weirdMap: null,
+    _weirdMarkers: [],
+
+    toggleWeirdLayer(key) {
+      this.weirdActiveLayers[key] = !this.weirdActiveLayers[key];
+      this._renderWeirdMarkers();
+    },
+    weirdEventCount(layerKey) { return this.WEIRD_EVENTS.filter(e => e.layer === layerKey).length; },
+    weirdEventById(id) { return this.WEIRD_EVENTS.find(e => e.id === id); },
+    get weirdChronological() {
+      const parse = ev => { const m = (ev.date || '').match(/\d{4}/); return m ? parseInt(m[0], 10) : 2100; };
+      return [...this.WEIRD_EVENTS].sort((a, b) => parse(a) - parse(b));
+    },
+    weirdTimelinePosition(ev) {
+      const m = (ev.date || '').match(/\d{4}/);
+      if (!m) return 50;
+      const year = parseInt(m[0], 10);
+      const pct = ((year - 1920) / (2029 - 1920)) * 100;
+      return Math.max(0, Math.min(100, pct));
+    },
+    selectWeird(id) {
+      this.weirdSelected = id;
+      const ev = this.weirdEventById(id);
+      if (ev && this._weirdMap) {
+        this._weirdMap.flyTo([ev.lat, ev.lng], Math.max(this._weirdMap.getZoom(), 10), { duration: 0.9 });
+      }
+    },
+    initWeirdMap() {
+      if (this._weirdMap) { setTimeout(() => this._weirdMap.invalidateSize(), 80); return; }
+      if (typeof L === 'undefined') { setTimeout(() => this.initWeirdMap(), 200); return; }
+      const el = document.getElementById('weird-map');
+      if (!el || el.offsetWidth < 10) { setTimeout(() => this.initWeirdMap(), 150); return; }
+      const m = L.map(el, { scrollWheelZoom: false, zoomControl: true })
+        .fitBounds([[48.82, -126.45], [50.58, -122.85]], { padding: [20, 20] });
+      // Standard OSM tiles with a painterly CSS filter applied to the
+      // container (see styles.css #weird-map). Reliable + no API key.
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 17,
+        attribution: '&copy; OpenStreetMap',
+      }).addTo(m);
+      this._weirdMap = m;
+      this._renderWeirdMarkers();
+    },
+    _clearWeirdMarkers() {
+      if (!this._weirdMap) return;
+      for (const marker of this._weirdMarkers) this._weirdMap.removeLayer(marker);
+      this._weirdMarkers = [];
+    },
+    _renderWeirdMarkers() {
+      if (!this._weirdMap) return;
+      this._clearWeirdMarkers();
+      for (const ev of this.WEIRD_EVENTS) {
+        if (!this.weirdActiveLayers[ev.layer]) continue;
+        const layer = this.WEIRD_LAYERS[ev.layer] || {};
+        const color = layer.color || '#1F1F1F';
+        const icon = L.divIcon({
+          className: 'weird-marker',
+          html: `<div class="weird-marker__inner" style="--c:${color}">${this._weirdGlyph(layer.glyph)}</div>`,
+          iconSize: [30, 30], iconAnchor: [15, 15],
+        });
+        const marker = L.marker([ev.lat, ev.lng], { icon }).addTo(this._weirdMap);
+        marker.on('click', () => { this.weirdSelected = ev.id; });
+        marker.bindTooltip(`<b>${ev.title}</b><br><span style="font-family:JetBrains Mono,monospace;font-size:10px;opacity:0.7">${ev.date}</span>`,
+          { direction: 'top', offset: [0, -12], opacity: 0.96 });
+        this._weirdMarkers.push(marker);
+      }
+    },
+    _weirdGlyph(kind) {
+      const svgs = {
+        ufo:   '<svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="2.6" fill="none" stroke="white" stroke-width="1.3"/><ellipse cx="12" cy="10.5" rx="5" ry="2.5" fill="none" stroke="white" stroke-width="1.3"/><circle cx="7" cy="12" r="0.9" fill="white"/><circle cx="12" cy="12" r="0.9" fill="white"/><circle cx="17" cy="12" r="0.9" fill="white"/></svg>',
+        print: '<svg viewBox="0 0 24 24"><ellipse cx="12" cy="16" rx="4.8" ry="3.4" fill="white"/><ellipse cx="8" cy="9" rx="1.6" ry="2" fill="white"/><ellipse cx="16" cy="9" rx="1.6" ry="2" fill="white"/><ellipse cx="11" cy="5.5" rx="1.2" ry="1.6" fill="white"/><ellipse cx="13" cy="5.5" rx="1.2" ry="1.6" fill="white"/></svg>',
+        cabin: '<svg viewBox="0 0 24 24"><path d="M4 18 L12 8 L20 18 Z M6 18 L6 14 M18 18 L18 14 M10 18 L10 14 L14 14 L14 18" fill="none" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg>',
+        smoke: '<svg viewBox="0 0 24 24"><path d="M12 20 L12 16 Q9 13 12 10 Q15 7 11 4 Q9 2 12 1" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round"/><path d="M7 20 L17 20" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>',
+        eye:   '<svg viewBox="0 0 24 24"><path d="M3 12 Q12 4 21 12 Q12 20 3 12 Z" fill="none" stroke="white" stroke-width="1.4"/><circle cx="12" cy="12" r="3" fill="none" stroke="white" stroke-width="1.2"/><circle cx="12" cy="12" r="1.2" fill="white"/></svg>',
+        wisp:  '<svg viewBox="0 0 24 24"><path d="M8 20 Q6 16 9 13 Q12 10 10 7 Q9 5 12 3 Q15 5 14 7 Q12 10 15 13 Q18 16 16 20 Z" fill="white" opacity="0.9"/></svg>',
+        compass:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="white" stroke-width="1"/><path d="M12 4 L13.2 12 L12 20 L10.8 12 Z M4 12 L12 10.8 L20 12 L12 13.2 Z" fill="white"/></svg>',
+      };
+      return svgs[kind] || svgs.wisp;
+    },
+
     TEAMS: window.TEAMS,
 
     // ---- Delight: contextual greeting + ferry countdown + easter egg ----

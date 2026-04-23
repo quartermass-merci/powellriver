@@ -47,6 +47,7 @@
   <script src="firebase-config.js"></script>
   <script src="assets/locations.js"></script>
   <script src="assets/seed.js"></script>
+  <script src="assets/weird.js"></script>
   <script src="assets/app.js"></script>
 
   <!-- Alpine last — reads window.trip when it starts on DOMContentLoaded. -->
@@ -92,7 +93,7 @@
   <nav class="border-b border-line bg-paper sticky top-0 z-30 no-print">
     <div class="max-w-7xl mx-auto px-6 flex items-center justify-between">
       <div class="flex">
-        <template x-for="t in ['Action Items','Schedule','Guide','Logistics']" :key="t">
+        <template x-for="t in ['Action Items','Schedule','Guide','Weird','Logistics']" :key="t">
           <button class="nav-btn" :class="tab===t.toLowerCase().replace(' ','-') ? 'active' : ''"
                   @click="tab = t.toLowerCase().replace(' ','-')" x-text="t"></button>
         </template>
@@ -764,6 +765,117 @@
           <li>20+ true-ish stories in the Story Bank, categorised</li>
           <li>12–15 story candidates ranked by end of Day 3</li>
         </ul>
+      </div>
+    </section>
+
+    <!-- ============ THE WEIRD & THE EERIE ============ -->
+    <section class="section weird-section" x-show="tab==='weird'" id="weird"
+             x-effect="if (tab==='weird') initWeirdMap()">
+      <div class="weird-hero">
+        <div class="weird-hero__stamp">Field Guide · Confidential</div>
+        <h1 class="weird-hero__title">The Weird <span class="weird-hero__amp">&amp;</span> The Eerie</h1>
+        <p class="weird-hero__sub">A corpus of UFOs, Sasquatch, hermits, burned homesteads, roadside cults, and restless ghosts along the Toba Inlet, Powell Lake, and Sunshine Coast corridor. Nineteen stories. Seven layers. One question — what does this place believe about itself?</p>
+      </div>
+
+      <!-- Layer filter chips -->
+      <div class="weird-layers">
+        <template x-for="(L, key) in WEIRD_LAYERS" :key="key">
+          <button class="weird-chip"
+                  :class="weirdActiveLayers[key] ? 'weird-chip--on' : ''"
+                  :style="'--chip:' + L.color"
+                  @click="toggleWeirdLayer(key)">
+            <span class="weird-chip__dot"></span>
+            <span class="weird-chip__label" x-text="L.label"></span>
+            <span class="weird-chip__sub" x-text="L.sub"></span>
+            <span class="weird-chip__count" x-text="weirdEventCount(key)"></span>
+          </button>
+        </template>
+      </div>
+
+      <!-- The map — Stamen Watercolor + custom markers -->
+      <div class="weird-map-wrap">
+        <div id="weird-map"></div>
+        <!-- Decorative flourish: a marine creature in the strait -->
+        <svg class="weird-flourish weird-flourish--creature" viewBox="0 0 200 80" aria-hidden="true">
+          <path d="M8 60 Q30 30 55 48 Q75 62 95 42 Q118 22 140 45 Q163 68 185 48 Q192 42 197 46" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          <circle cx="18" cy="57" r="1.8" fill="currentColor"/>
+          <path d="M15 55 Q12 50 16 48" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+          <text x="100" y="18" font-family="Fraunces, Georgia, serif" font-style="italic" font-size="13" text-anchor="middle" fill="currentColor" opacity="0.85">hic sunt taciturnitates</text>
+        </svg>
+      </div>
+
+      <!-- Side panel — slides up from below on mobile, right on desktop -->
+      <template x-if="weirdSelected">
+        <div class="weird-detail panel"
+             x-data="{ ev: weirdEventById(weirdSelected) }">
+          <template x-if="ev">
+            <div>
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <div class="weird-detail__kind" :style="'--kind:' + (WEIRD_LAYERS[ev.layer]||{}).color" x-text="ev.kind + ' · ' + (WEIRD_LAYERS[ev.layer]||{}).label"></div>
+                  <h3 class="weird-detail__title" x-text="ev.title"></h3>
+                  <div class="weird-detail__meta">
+                    <span x-text="ev.date"></span>
+                    <span class="weird-detail__place" x-text="'· ' + ev.place"></span>
+                  </div>
+                </div>
+                <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="weirdSelected = null">×</button>
+              </div>
+              <p class="weird-detail__summary" x-text="ev.summary"></p>
+              <p class="weird-detail__story" x-text="ev.story"></p>
+              <div class="weird-detail__source">
+                <span class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-55">Source</span>
+                <span x-text="ev.source"></span>
+              </div>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <!-- Chronological timeline strip -->
+      <div class="weird-timeline">
+        <div class="weird-timeline__rail"></div>
+        <template x-for="ev in weirdChronological" :key="ev.id">
+          <button class="weird-timeline__dot"
+                  :class="weirdSelected === ev.id ? 'weird-timeline__dot--on' : ''"
+                  :style="'--dot:' + (WEIRD_LAYERS[ev.layer]||{}).color + '; left:' + weirdTimelinePosition(ev) + '%'"
+                  :title="ev.date + ' · ' + ev.title"
+                  @click="selectWeird(ev.id)">
+            <span class="weird-timeline__tip">
+              <span class="font-mono text-[9px] opacity-70" x-text="ev.date"></span>
+              <span x-text="ev.title"></span>
+            </span>
+          </button>
+        </template>
+        <!-- Decade markers -->
+        <template x-for="decade in WEIRD_TIMELINE_DECADES" :key="decade">
+          <div class="weird-timeline__decade" :style="'left:' + (WEIRD_TIMELINE_DECADES.indexOf(decade) / (WEIRD_TIMELINE_DECADES.length - 1)) * 100 + '%'" x-text="decade"></div>
+        </template>
+      </div>
+
+      <!-- Narrative notes -->
+      <div class="weird-notes">
+        <div class="weird-notes__col">
+          <div class="font-display text-xl">The pattern markers</div>
+          <ul class="mt-2 space-y-1.5">
+            <li><b>Silence at altitude.</b> Every close-range UFO account notes no engine sound.</li>
+            <li><b>NW flight vector.</b> Where direction is specified, it's northwest.</li>
+            <li><b>Hair-covered humanoids in European folklore.</b> Basajaun, marfolat, skograa, hulder. The Ostman encounter has deep antecedents.</li>
+            <li><b>Hancock House is the house publisher.</b> Green, Mobley, Belyk — a local bibliographic tradition, not an accident.</li>
+          </ul>
+        </div>
+        <div class="weird-notes__col">
+          <div class="font-display text-xl">The 1970s as hinge</div>
+          <ul class="mt-2 space-y-1.5">
+            <li>Olsen Valley burned, 1972.</li>
+            <li>First Sunshine Coast UFO cluster, 1975–78.</li>
+            <li>Ostman dies, 1975.</li>
+            <li>Anderson's sawmill sold, 1976.</li>
+            <li>Courthouse Inn converted from government use, 1974.</li>
+            <li>Ostman's case enters John Green's canon, 1978.</li>
+          </ul>
+          <p class="mt-3 font-display italic opacity-80">The period when the pioneer world closes and the modern weird opens.</p>
+        </div>
       </div>
     </section>
 

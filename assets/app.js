@@ -621,6 +621,38 @@ function trip() {
       this.recording.blockId = blockId;
     },
 
+    // ---- Reset schedule to canonical seed (the docx baseline) ----
+    // Preserves any `notes` the user has already written so voice captures
+    // aren't lost when you reset a drifted schedule.
+    resetFromSeed() {
+      const preservedNotes = {};
+      for (const b of this.blocks) {
+        if (b.interviewId && b.notes && b.notes.trim()) preservedNotes[b.interviewId] = b.notes;
+      }
+      // Rebuild blocks from seed
+      const fresh = [];
+      for (const day of Object.keys(window.SCHEDULE_SEED)) {
+        for (const b of window.SCHEDULE_SEED[day]) {
+          const copy = { ...b, notes: '' };
+          if (copy.interviewId && preservedNotes[copy.interviewId]) {
+            copy.notes = preservedNotes[copy.interviewId];
+          }
+          fresh.push(copy);
+        }
+      }
+      this.blocks = fresh;
+      // Rebuild actions, preserving status + any intervieweeId mapping from seed
+      this.actions = window.ACTION_ITEMS.map(a => ({ ...a }));
+      this.moveHistory = [];
+      this.focusedBlockId = null;
+      this.focusedActionIdx = null;
+      this.selectedBlockId = null;
+      this.pushRemote();
+      this._debouncedRenderRoute();
+      const preservedCount = Object.keys(preservedNotes).length;
+      this.showToast(`Reset — ${fresh.length} blocks restored${preservedCount ? ' · ' + preservedCount + ' notes preserved' : ''}`);
+    },
+
     // ---- CSV export of all notes ----
     exportNotesCsv() {
       const rows = [['Day', 'Start', 'End', 'Team', 'Location', 'Title', 'Attendees', 'Brief', 'Notes']];

@@ -156,6 +156,7 @@
         </div>
         <div class="flex flex-col gap-2 text-sm font-mono opacity-90">
           <button class="btn" @click="exportNotesCsv()">⬇ Export notes (CSV)</button>
+          <button class="btn secondary" @click="if (confirm('Reset schedule to the canonical docx baseline? Any drag/drop/lock-in changes will be undone. Field notes are preserved.')) resetFromSeed()">↺ Reset from seed</button>
           <div class="text-right opacity-70" x-text="'v' + version"></div>
         </div>
       </div>

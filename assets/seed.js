@@ -3,9 +3,9 @@
 // on first load, then be the source of truth thereafter.
 
 window.TEAMS = {
-  pk_jen:      { id: "pk_jen",      label: "PK + Jen",    role: "Interviews",     color: "#2B3A2E" },
-  mike_katie:  { id: "mike_katie",  label: "Mike + Katie", role: "Camera + Audio", color: "#8B5A2B" },
-  both:        { id: "both",        label: "Both Teams",   role: "Combined",       color: "#1F1F1F" },
+  pk_jen:      { id: "pk_jen",      label: "PK + Jen",    role: "", color: "#2B3A2E" },
+  mike_katie:  { id: "mike_katie",  label: "Katie + Mike", role: "", color: "#8B5A2B" },
+  both:        { id: "both",        label: "Both Teams",   role: "", color: "#1F1F1F" },
 };
 
 window.BLOCK_TYPES = {

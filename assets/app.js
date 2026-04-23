@@ -351,16 +351,23 @@ function trip() {
       return window.INTERVIEWS.filter(i => i.day === d);
     },
     interviewById(id) {
-      // Return a view that applies any user-edited contact overrides.
+      // Return a view that applies any user-edited overrides for contacts AND
+      // interview fields (bio, prep, role, name). All editable inline.
       const base = window.INTERVIEWS.find(i => i.id === id);
       if (!base) return null;
       const ov = this.contactOverrides[id] || {};
       return {
         ...base,
+        // Contact
         email:    ov.email    !== undefined ? ov.email    : base.email,
         phone:    ov.phone    !== undefined ? ov.phone    : (base.phone || ''),
         address:  ov.address  !== undefined ? ov.address  : (base.address || ''),
         linkedin: ov.linkedin !== undefined ? ov.linkedin : base.linkedin,
+        // Interview content (override-able)
+        name:     ov.name     !== undefined ? ov.name     : base.name,
+        role:     ov.role     !== undefined ? ov.role     : base.role,
+        bio:      ov.bio      !== undefined ? ov.bio      : base.bio,
+        prep:     ov.prep     !== undefined ? ov.prep     : base.prep,
       };
     },
     updateContact(id, field, value) {

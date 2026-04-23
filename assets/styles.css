@@ -578,6 +578,134 @@ table td, table th {
   z-index: 50;
 }
 
+/* ================ FERRY MODE ================
+   Thursday-morning takeover. Full-viewport ritual HUD. */
+.ferry-mode {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  background: linear-gradient(180deg, #1a1f1b 0%, #121412 100%);
+  color: var(--sm-paper);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  isolation: isolate;
+  animation: ferry-fade-in 600ms ease-out;
+}
+@keyframes ferry-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.ferry-mode__vessel {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 22vh;
+  width: 140%;
+  height: auto;
+  color: rgba(245, 241, 234, 0.10);
+  animation: ferry-drift 42s linear infinite;
+  transform: translateX(-30%);
+  pointer-events: none;
+}
+@keyframes ferry-drift {
+  from { transform: translateX(-30%); }
+  to   { transform: translateX(30%); }
+}
+
+.ferry-mode__inner {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  max-width: 560px;
+  padding: 2rem;
+}
+
+.ferry-mode__label {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  opacity: 0.5;
+  margin-bottom: 0.5rem;
+}
+
+.ferry-mode__clock {
+  font-family: var(--font-display);
+  font-variation-settings: "opsz" 144;
+  font-size: clamp(5rem, 18vw, 9rem);
+  font-weight: 450;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--sm-paper);
+  transition: color 300ms ease, text-shadow 600ms ease;
+}
+.ferry-mode__clock--urgent {
+  color: #E58C70;
+  text-shadow: 0 0 40px rgba(229, 140, 112, 0.3);
+  animation: ferry-clock-pulse 2.2s ease-in-out infinite;
+}
+@keyframes ferry-clock-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.78; }
+}
+
+.ferry-mode__epigraph {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 1.15rem;
+  opacity: 0.6;
+  margin-top: 1rem;
+  letter-spacing: -0.005em;
+}
+
+.ferry-mode__next {
+  font-family: var(--font-sans);
+  font-size: 1.1rem;
+  margin-top: 1.8rem;
+  line-height: 1.4;
+  opacity: 0.88;
+}
+
+.ferry-mode__btn {
+  display: inline-block;
+  margin-top: 1.8rem;
+  padding: 0.9rem 1.6rem;
+  background: var(--sm-paper);
+  color: var(--sm-ink);
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-mono);
+  border-radius: 2px;
+  text-decoration: none;
+  transition: transform 120ms ease, background 200ms ease;
+}
+.ferry-mode__btn:hover {
+  background: #E0D9C9;
+  transform: translateY(-1px);
+}
+
+.ferry-mode__close {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  z-index: 2;
+  background: transparent;
+  color: var(--sm-paper);
+  border: 1px solid rgba(245, 241, 234, 0.25);
+  width: 36px; height: 36px;
+  border-radius: 2px;
+  font-size: 1.3rem;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 150ms ease;
+}
+.ferry-mode__close:hover { opacity: 1; }
+
 /* Ferry countdown pill — appears in the final 24h before Thu 06:25 */
 .ferry-pill {
   position: fixed;
@@ -622,6 +750,36 @@ table td, table th {
 @keyframes ferry-pulse {
   0%, 100% { box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
   50%      { box-shadow: 0 10px 28px rgba(160, 70, 42, 0.30); }
+}
+
+/* ================ LIVE PRESENCE ================ */
+.presence-cursor {
+  position: fixed;
+  pointer-events: none;
+  z-index: 2500;
+  color: var(--pc, var(--sm-forest));
+  transition: top 80ms linear, left 80ms linear;
+  transform: translate(-2px, -2px);
+}
+.presence-cursor__label {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 2px 6px;
+  background: var(--pc, var(--sm-forest));
+  color: var(--sm-paper);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  border-radius: 2px;
+  transform: translateY(-2px);
+  white-space: nowrap;
+}
+
+/* Fields being edited by someone else get a subtle coloured outline */
+[data-presence-edit] {
+  box-shadow: 0 0 0 2px var(--pc, var(--sm-forest));
+  border-radius: 2px;
 }
 
 /* Logo badge — click-hold target for the mantra reveal */
@@ -685,7 +843,35 @@ table td, table th {
   .ferry-pill--urgent { animation: none; }
   .toast-check path { animation: none; stroke-dashoffset: 0; }
   .pulse-dot { animation: none; }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) { animation: none !important; }
 }
+
+/* ============= View Transitions ============= */
+/* Overall timing — slightly faster than default, with a confident ease */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 240ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* The action drawer morphs from the row that was clicked. The row has
+   view-transition-name: action-row-<idx>. The open drawer borrows the
+   same name, so the browser interpolates position + size between them. */
+::view-transition-group(action-drawer) {
+  animation-duration: 360ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Meeting-detail drawer morphing from the timetable block that was clicked */
+::view-transition-group(meeting-drawer) {
+  animation-duration: 360ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Don't let the root crossfade bleed across drawer morphs */
+::view-transition-group(root) { animation-duration: 240ms; }
 
 /* Day picker — horizontal strip, no-wrap, scrollable on narrow screens */
 .day-strip {

@@ -70,6 +70,22 @@ function trip() {
     mapPulse: null,             // pulsing marker on focused location
     mapInteractive: false,      // on mobile, map is locked until user explicitly unlocks
     isTouchDevice: typeof window !== 'undefined' && (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)),
+    mapHasFlown: {},            // which day has been "flown in" (cinematic intro)
+
+    // Live presence
+    presences: {},              // { uid: { name, color, cursor:{x,y}, editingField, lastSeen } }
+    _presenceRef: null,
+    _myPresence: null,
+    _presenceColors: ['#8B5A2B', '#2B3A2E', '#A0462A', '#C9A270', '#556B4F', '#6B1D1D'],
+    _namePool: ['Heron', 'Raven', 'Salal', 'Arbutus', 'Cedar', 'Mallard', 'Otter', 'Fern'],
+    get otherPresences() {
+      const now = Date.now();
+      return Object.values(this.presences || {})
+        .filter(p => p && p.uid && p.uid !== this.uid && p.lastSeen && (now - p.lastSeen < 30000));
+    },
+    presenceEditing(fieldKey) {
+      return this.otherPresences.find(p => p.editingField === fieldKey) || null;
+    },
     showRoutePK: true,
     showRouteMK: true,
     osrmCache: {},              // cache key "lng1,lat1;lng2,lat2" -> { minutes, km, coords, source }
@@ -179,6 +195,36 @@ function trip() {
       if (h < 21) return `Golden hour · ${String(h).padStart(2,'0')}:${String(pt.m).padStart(2,'0')} PT`;
       return `After hours · ${String(h).padStart(2,'0')}:${String(pt.m).padStart(2,'0')} PT`;
     },
+
+    // Ferry Mode — the dramatic Thursday-morning takeover.
+    // Only active Thu 04:00–07:00 PT, and only until the user dismisses it.
+    ferryDismissed: false,
+    get ferryMode() {
+      const pt = this._pacificTimeNow();
+      if (!pt) return { active: false };
+      if (pt.d !== 30 || pt.h < 4 || pt.h >= 7 || pt.M !== 4) return { active: false };
+      if (this.ferryDismissed) return { active: false };
+      const cd = this.ferryCountdown || {};
+      const mins = pt.h * 60 + pt.m;
+      // Next action based on the time bracket
+      let nextAction = '';
+      if (mins < 4 * 60 + 45)  nextAction = 'Alarms in ' + (4 * 60 + 45 - mins) + ' min. Start the coffee.';
+      else if (mins < 5 * 60 + 15) nextAction = 'Pack the last things. Depart the Airbnb at 05:15.';
+      else if (mins < 5 * 60 + 45) nextAction = 'On the road. Saltery Bay terminal by 05:45.';
+      else if (mins < 6 * 60 + 25) nextAction = 'At the terminal. Check @BCFerries for status.';
+      else nextAction = 'Ferry is boarding. Go.';
+      const salteryBayUrl = 'https://maps.apple.com/?q=49.7814,-124.1771';
+      const airbnbUrl = 'https://maps.apple.com/?q=49.8442,-124.5122';
+      return {
+        active: true,
+        clock: cd.label || '—',
+        urgent: !!cd.urgent,
+        nextAction,
+        primaryUrl: mins < 5 * 60 + 15 ? airbnbUrl : salteryBayUrl,
+        primaryLabel: mins < 5 * 60 + 15 ? 'Open Airbnb in Maps' : 'Open Saltery Bay in Maps',
+      };
+    },
+    dismissFerry() { this.ferryDismissed = true; },
 
     get ferryCountdown() {
       const pt = this._pacificTimeNow();
@@ -299,7 +345,10 @@ function trip() {
         const auth = firebase.auth();
         const db = firebase.database();
         auth.signInAnonymously().catch(err => console.warn('anon auth', err));
-        auth.onAuthStateChanged(u => { this.uid = u?.uid || null; });
+        auth.onAuthStateChanged(u => {
+          this.uid = u?.uid || null;
+          if (this.uid) this._setupPresence(db);
+        });
 
         const root = db.ref(`/trips/${window.TRIP_ID || 'meridian-powell-river'}`);
         // Initial pull
@@ -343,6 +392,53 @@ function trip() {
       }
     },
 
+    // ---- Live presence ----
+    _setupPresence(db) {
+      if (this._presenceRef) return;
+      const tripId = window.TRIP_ID || 'meridian-powell-river';
+      const rootRef = db.ref(`/presence/${tripId}`);
+      this._presenceRef = rootRef.child(this.uid);
+      // Clean up on disconnect (Firebase auto-removes the node when connection drops)
+      this._presenceRef.onDisconnect().remove();
+      // Pick a stable-ish identity per browser session.
+      const stored = (() => { try { return JSON.parse(localStorage.getItem('meridian-me') || 'null'); } catch { return null; } })();
+      const me = stored || {
+        name: this._namePool[Math.floor(Math.random() * this._namePool.length)],
+        color: this._presenceColors[Math.floor(Math.random() * this._presenceColors.length)],
+      };
+      try { localStorage.setItem('meridian-me', JSON.stringify(me)); } catch {}
+      this._myPresence = { uid: this.uid, ...me, cursor: null, editingField: null, lastSeen: Date.now() };
+      this._presenceRef.set(this._myPresence);
+      // Subscribe to all presence entries
+      rootRef.on('value', snap => {
+        this.presences = snap.val() || {};
+      });
+      // Throttle mousemove + heartbeat
+      let lastMove = 0;
+      window.addEventListener('mousemove', e => {
+        const now = Date.now();
+        if (now - lastMove < 70) return;
+        lastMove = now;
+        this._updatePresence({ cursor: { x: e.clientX, y: e.clientY } });
+      });
+      // Also track focus on editable fields
+      document.addEventListener('focusin', e => {
+        const t = e.target;
+        const key = t && t.closest && (t.closest('[data-field]')?.getAttribute('data-field') || t.id);
+        if (key) this._updatePresence({ editingField: key });
+      });
+      document.addEventListener('focusout', () => {
+        this._updatePresence({ editingField: null });
+      });
+      // Heartbeat every 10s to keep lastSeen fresh
+      setInterval(() => this._updatePresence({}), 10000);
+    },
+    _updatePresence(partial) {
+      if (!this._presenceRef || !this._myPresence) return;
+      Object.assign(this._myPresence, partial, { lastSeen: Date.now() });
+      this._presenceRef.update(this._myPresence).catch(() => {});
+    },
+
     pushRemote() {
       this.saveLocal();
       if (!this._remoteRef) return;
@@ -369,6 +465,18 @@ function trip() {
       this.toastIsSuccess = /^(Confirmed|Locked in|Swapped|Bumped|Pushed|Undone|Added|Saved|Exported|Reset)/i.test(text);
       if (this.toastTimer) clearTimeout(this.toastTimer);
       this.toastTimer = setTimeout(() => { this.toast = null; this.toastIsSuccess = false; }, ms);
+    },
+
+    // Wrap state mutations in the View Transitions API when available so
+    // drawer opens, block clicks, and confirmations animate as a morph.
+    // Falls through to a plain call on browsers without support.
+    _vt(mutator) {
+      const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (!reduced && document.startViewTransition) {
+        return document.startViewTransition(() => mutator());
+      }
+      mutator();
+      return null;
     },
 
     // ---- derived data ----
@@ -593,7 +701,7 @@ function trip() {
     },
 
     // ---- CRUD ----
-    openBlock(id) { this.selectedBlockId = id; },
+    openBlock(id) { this._vt(() => { this.selectedBlockId = id; }); },
     saveBlock(b) {
       const idx = this.blocks.findIndex(x => x.id === b.id);
       if (idx >= 0) this.blocks.splice(idx, 1, { ...b });
@@ -804,32 +912,33 @@ function trip() {
     },
 
     openAction(idx) {
-      this.focusedActionIdx = idx;
-      const a = this.actions[idx];
-      const block = this._actionBlock(a);
-      const ii = a.intervieweeId ? this.interviewById(a.intervieweeId) : null;
-      // Seed the booking form from the linked block, or fall back to interviewee defaults.
-      if (block) {
-        this.actionForm = {
-          day: block.day, start: block.start, duration: block.duration,
-          team: block.team, locationId: block.locationId || '',
-          title: block.title,
-        };
-      } else if (ii) {
-        // Default to the interviewee's seed day / duration / team, 10:00 start
-        this.actionForm = {
-          day: ii.day && ii.day !== 'remote' ? ii.day : 'mon',
-          start: '10:00',
-          duration: ii.duration || 30,
-          team: ii.team || 'pk_jen',
-          locationId: ii.locationId || '',
-          title: ii.name,
-        };
-      } else {
-        this.actionForm = { day: 'mon', start: '10:00', duration: 30, team: 'pk_jen', locationId: '', title: a.text };
-      }
+      this._vt(() => {
+        const a = this.actions[idx];
+        const block = this._actionBlock(a);
+        const ii = a.intervieweeId ? this.interviewById(a.intervieweeId) : null;
+        // Seed the booking form from the linked block, or fall back to interviewee defaults.
+        if (block) {
+          this.actionForm = {
+            day: block.day, start: block.start, duration: block.duration,
+            team: block.team, locationId: block.locationId || '',
+            title: block.title,
+          };
+        } else if (ii) {
+          this.actionForm = {
+            day: ii.day && ii.day !== 'remote' ? ii.day : 'mon',
+            start: '10:00',
+            duration: ii.duration || 30,
+            team: ii.team || 'pk_jen',
+            locationId: ii.locationId || '',
+            title: ii.name,
+          };
+        } else {
+          this.actionForm = { day: 'mon', start: '10:00', duration: 30, team: 'pk_jen', locationId: '', title: a.text };
+        }
+        this.focusedActionIdx = idx;
+      });
     },
-    closeAction() { this.focusedActionIdx = null; },
+    closeAction() { this._vt(() => { this.focusedActionIdx = null; }); },
 
     // Blocks that would overlap the proposed slot in the selected team lane.
     get actionConflicts() {
@@ -1402,10 +1511,23 @@ function trip() {
       this.blocks
         .filter(b => b.day === this.day && b.locationId && b.type !== 'buffer' && b.type !== 'synthesis')
         .forEach(b => ids.add(b.locationId));
-      // Always include home as the starting point.
       ids.add('airbnb');
       const pts = [...ids].map(id => window.locationById(id)).filter(Boolean).map(l => [l.lat, l.lng]);
-      if (pts.length >= 2) {
+      const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      // First visit of this day in this session gets the cinematic intro:
+      // start zoomed wide on the whole corridor, then fly into the day's bounds.
+      const cinematic = !reduced && !this.mapHasFlown[this.day] && pts.length >= 2;
+      if (cinematic) {
+        this.mapHasFlown[this.day] = true;
+        // Wider starting bounds — the whole Sunshine Coast + Strait of Georgia.
+        this.mapInstance.fitBounds([[49.15, -124.90], [50.00, -122.90]], { animate: false });
+        // Wait a beat so the wide frame registers, then fly in.
+        setTimeout(() => {
+          try {
+            this.mapInstance.flyToBounds(pts, { duration: 1.8, padding: [30, 30], easeLinearity: 0.25 });
+          } catch (e) { this.mapInstance.fitBounds(pts, { padding: [30, 30] }); }
+        }, 120);
+      } else if (pts.length >= 2) {
         this.mapInstance.fitBounds(pts, { padding: [30, 30], animate: false });
       } else if (pts.length === 1) {
         this.mapInstance.setView(pts[0], 13, { animate: false });

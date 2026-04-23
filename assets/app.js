@@ -560,10 +560,19 @@ function trip() {
     },
 
     // People rows (have an intervieweeId). Filtered to a status.
+    // Sorted by soonest linked-meeting day/time so the next unconfirmed
+    // interview sits at the top of the pending list — no need to scan.
     peopleByStatus(status) {
+      const dayOrder = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, remote: 99 };
+      const scoreFor = (a) => {
+        const b = this._actionBlock(a);
+        if (!b) return 9999;
+        return (dayOrder[b.day] ?? 50) * 1440 + this._toMin(b.start || '12:00');
+      };
       return this.actions
         .map((a, _idx) => ({ ...a, _idx }))
-        .filter(a => !!a.intervieweeId && a.status === status);
+        .filter(a => !!a.intervieweeId && a.status === status)
+        .sort((a, b) => scoreFor(a) - scoreFor(b));
     },
 
     // Leads — ideas + tasks without an intervieweeId.
@@ -573,20 +582,31 @@ function trip() {
         .filter(a => !a.intervieweeId);
     },
 
-    // Structured open spots: { pk_jen: { mon:[], tue:[], wed:[] }, mike_katie: {...} }
-    // Used by the two-column grid on the Outreach page.
+    // Structured open spots: { pk_jen: { mon: {am:[], pm:[], eve:[]}, tue:…, wed:… }, mike_katie: … }
+    // Split into morning (before 12), afternoon (12–17), evening (17+) so the
+    // two-column grid can show time-of-day context without reading every chip.
     get openSpotsByTeamDay() {
+      const bucket = (start) => {
+        const h = parseInt(start.split(':')[0], 10);
+        if (h < 12) return 'am';
+        if (h < 17) return 'pm';
+        return 'eve';
+      };
+      const empty = () => ({ am: [], pm: [], eve: [] });
       const out = {
-        pk_jen:     { mon: [], tue: [], wed: [] },
-        mike_katie: { mon: [], tue: [], wed: [] },
+        pk_jen:     { mon: empty(), tue: empty(), wed: empty() },
+        mike_katie: { mon: empty(), tue: empty(), wed: empty() },
       };
       for (const s of this.openSpots) {
-        if (out[s.team] && out[s.team][s.day]) out[s.team][s.day].push(s);
+        if (out[s.team] && out[s.team][s.day]) {
+          out[s.team][s.day][bucket(s.start)].push(s);
+        }
       }
-      // Keep each day's slots in start-time order
       for (const team of Object.keys(out)) {
         for (const day of Object.keys(out[team])) {
-          out[team][day].sort((a, b) => a.start.localeCompare(b.start));
+          for (const slot of ['am', 'pm', 'eve']) {
+            out[team][day][slot].sort((a, b) => a.start.localeCompare(b.start));
+          }
         }
       }
       return out;
@@ -602,10 +622,13 @@ function trip() {
         tue: [8 * 60, 21 * 60],
         wed: [8 * 60, 22 * 60],
       };
+      // Types that do NOT count as occupied — these represent explicit "free"
+      // or unscheduled time and should surface as spots, not block them.
+      const softTypes = new Set(['buffer']);
       for (const [day, [startMin, endMin]] of Object.entries(ranges)) {
         for (const team of ['pk_jen', 'mike_katie']) {
           const lane = this.blocks
-            .filter(b => b.day === day && b.team === team)
+            .filter(b => b.day === day && b.team === team && !softTypes.has(b.type))
             .map(b => ({
               start: this._toMin(b.start),
               end:   this._toMin(this.addMinutes(b.start, b.duration)),

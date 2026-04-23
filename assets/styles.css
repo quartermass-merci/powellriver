@@ -485,6 +485,69 @@ table td, table th {
   max-width: var(--measure);
 }
 
+/* Drawer H1 — editable title that looks like a heading until focused.
+   When the user clicks, it reveals a proper input frame so edits feel
+   intentional rather than accidental. */
+.drawer-h1 {
+  display: block;
+  width: 100%;
+  margin-top: 0.4rem;
+  padding: 0.2rem 0.1rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  color: var(--sm-ink);
+  font-optical-sizing: auto;
+  font-variation-settings: "opsz" 72;
+}
+.drawer-h1:hover {
+  border-color: var(--sm-line);
+  background: var(--sm-bone);
+}
+.drawer-h1:focus {
+  outline: none;
+  border-color: var(--sm-forest);
+  background: var(--sm-bone);
+  box-shadow: 0 0 0 2px rgba(43,58,46,0.12);
+}
+
+/* Inline select — styled to look like part of a sentence, not a form field */
+.select-inline {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 0.1rem 0.35rem;
+  font-size: 0.86rem;
+  color: var(--sm-ink);
+  border-radius: 2px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.select-inline:hover { border-color: var(--sm-line); background: var(--sm-bone); }
+.select-inline:focus {
+  outline: none;
+  border-color: var(--sm-forest);
+  background: var(--sm-bone);
+}
+.select-inline.font-mono { font-family: var(--font-mono); }
+
+/* Collapsible summary row — for progressive disclosure in the drawer */
+.drawer-collapse-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  padding: 0.25rem 0;
+  user-select: none;
+}
+.drawer-collapse-head:hover .font-display { color: var(--sm-forest); }
+
 /* Drawer collapsible chevron */
 .chev {
   display: inline-block;
@@ -777,7 +840,38 @@ table td, table th {
 .tt-block[data-type="travel"] .ttl {
   font-family: 'Inter', sans-serif;
   font-weight: 500;
-  font-size: 0.74rem;
+  font-size: 0.82rem;
+}
+
+/* WEIGHT CONTRAST — formal interviews are the headline blocks on the
+   timetable. Give them a bolder left border and a slight darker background
+   tint so the eye lands on them first. Dim the utility blocks. */
+.tt-block[data-type="formal"],
+.tt-block[data-type="short"],
+.tt-block[data-type="portrait"],
+.tt-block[data-type="roundtable"],
+.tt-block[data-type="informal"] {
+  border-left-width: 5px;
+  background: var(--sm-paper);
+}
+.tt-block[data-type="formal"] .ttl,
+.tt-block[data-type="roundtable"] .ttl {
+  font-weight: 550;
+}
+
+/* Utility blocks — travel, buffer, synthesis, broll — should recede */
+.tt-block[data-type="buffer"],
+.tt-block[data-type="synthesis"],
+.tt-block[data-type="broll"] {
+  opacity: 0.78;
+  border-left-width: 2px;
+}
+.tt-block[data-type="buffer"] .ttl,
+.tt-block[data-type="synthesis"] .ttl,
+.tt-block[data-type="broll"] .ttl {
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 0.84rem;
 }
 
 /* Scroll offset for in-page sections */

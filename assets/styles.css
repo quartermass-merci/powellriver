@@ -349,6 +349,27 @@ html, body {
   z-index: 50;
 }
 
+/* Day picker pills (inside Schedule section) */
+.day-pill {
+  padding: 0.4rem 0.85rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sm-ink-2);
+  background: var(--sm-paper);
+  border: 1px solid var(--sm-line);
+  border-radius: 1px;
+  cursor: pointer;
+  transition: all 100ms ease;
+}
+.day-pill:hover { border-color: var(--sm-forest); color: var(--sm-ink); }
+.day-pill--active {
+  background: var(--sm-ink);
+  color: var(--sm-paper);
+  border-color: var(--sm-ink);
+}
+
 /* Ribbon banner */
 .ribbon {
   background: var(--sm-forest);

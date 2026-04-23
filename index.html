@@ -77,12 +77,6 @@
                   @click="tab = t.toLowerCase().replace(' ','-')" x-text="t"></button>
         </template>
       </div>
-      <div class="flex items-center gap-3 py-2">
-        <span class="font-mono text-[10px] tracking-[0.18em] uppercase opacity-60">Day</span>
-        <template x-for="d in [['mon','Mon'],['tue','Tue'],['wed','Wed']]" :key="d[0]">
-          <button class="nav-btn" :class="day===d[0] ? 'active' : ''" @click="day=d[0]" x-text="d[1]"></button>
-        </template>
-      </div>
     </div>
   </nav>
 
@@ -265,16 +259,33 @@
     <!-- ============ SCHEDULE (timetable + map + detail strip) ============ -->
     <section class="section" x-show="tab==='schedule'" id="schedule"
              x-effect="if (tab==='schedule') initMap(); if (tab==='schedule') $nextTick(() => renderDayRoute())">
-      <div class="flex items-end justify-between mb-5 flex-wrap gap-3">
+      <div class="flex items-end justify-between mb-5 flex-wrap gap-4">
         <div>
           <div class="stamp">Schedule · <span x-text="dayLabel(day)"></span></div>
           <h1 class="font-display text-3xl mt-2" x-text="dayHeadline(day)"></h1>
-          <p class="text-xs opacity-60 mt-1">Click a block to focus it — map pans + directions + background appear below. Drag to reschedule. Drop on a pinned block is refused; otherwise it swaps or pushes.</p>
+          <p class="text-xs opacity-60 mt-1">Click a block to focus it — map pans + directions + background appear. Drag to reschedule. Drop on a pinned block is refused; otherwise it swaps or pushes.</p>
         </div>
         <div class="flex gap-2">
-          <button class="btn secondary" @click="previewReorder(day)" :disabled="day==='tue'">Re-order for travel</button>
+          <a class="btn secondary" :href="appleMapsForDay(day)" target="_blank" rel="noopener" title="Open all day's stops in Apple Maps (multi-stop driving route)">🗺 Today in Apple Maps</a>
+          <button class="btn secondary" @click="previewReorder(day)" :disabled="day==='tue' || day==='sun' || day==='thu'">Re-order for travel</button>
           <button class="btn" @click="addActionAndOpen()">+ New booking</button>
         </div>
+      </div>
+
+      <!-- Day picker within the Schedule (scoped here, not in global nav) -->
+      <div class="flex items-center gap-2 mb-4 flex-wrap">
+        <span class="font-mono text-[10px] tracking-[0.18em] uppercase opacity-60 mr-1">Day</span>
+        <template x-for="d in [
+            ['sun','Sun · Apr 26 · Outbound'],
+            ['mon','Mon · Apr 27 · Community Voices'],
+            ['tue','Tue · Apr 28 · Facility Embed'],
+            ['wed','Wed · Apr 29 · Stories + Mill Tour'],
+            ['thu','Thu · Apr 30 · Return']
+          ]" :key="d[0]">
+          <button class="day-pill"
+                  :class="day===d[0] ? 'day-pill--active' : ''"
+                  @click="day=d[0]" x-text="d[1]"></button>
+        </template>
       </div>
 
       <div class="tt-wrap panel">

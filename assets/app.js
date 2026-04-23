@@ -185,7 +185,8 @@ function trip() {
     // ---- derived data ----
     get timeSlots() {
       const slots = [];
-      for (let h = 7; h <= 21; h++) {
+      // 04:00 → 21:00 to cover Thursday's 04:45 departure + Sunday evening dinner.
+      for (let h = 4; h <= 21; h++) {
         for (const m of [0, 15, 30, 45]) {
           if (h === 21 && m > 0) break;
           slots.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
@@ -195,13 +196,21 @@ function trip() {
     },
 
     dayLabel(d) {
-      return { mon: 'Monday · Apr 27', tue: 'Tuesday · Apr 28', wed: 'Wednesday · Apr 29' }[d] || d;
+      return {
+        sun: 'Sunday · Apr 26',
+        mon: 'Monday · Apr 27',
+        tue: 'Tuesday · Apr 28',
+        wed: 'Wednesday · Apr 29',
+        thu: 'Thursday · Apr 30',
+      }[d] || d;
     },
     dayHeadline(d) {
       return {
+        sun: 'Outbound travel. YYZ + YUL → YVR → ferry → ferry → Powell River. Team dinner + Day 1 briefing by 19:30.',
         mon: 'Townsite, archives, Hulks. First community interviews — Craig/Ewan, Chris McDonough. Marine Ave MOTS set 1.',
         tue: 'Full Meridian embed. 4 formals + 4 shorts + roundtable. Staff lunch 12–1 in the parking lot.',
         wed: 'Stories, characters, mill tour at sunset. Brent B south at 8 AM. 12–15 story candidates by end of day.',
+        thu: 'Return travel. 06:25 Saltery Bay sailing is non-negotiable. 10:30 Langdale→HSB reserved. 14:30 YVR→home.',
       }[d] || '';
     },
 
@@ -725,8 +734,14 @@ function trip() {
 
     // ---- .ics generation ----
     _icsDate(day, start) {
-      // Field-day dates: Mon Apr 27 / Tue Apr 28 / Wed Apr 29 2026
-      const dayMap = { mon: [2026, 4, 27], tue: [2026, 4, 28], wed: [2026, 4, 29] };
+      // Field-day dates for the Powell River trip, Apr 26–30, 2026
+      const dayMap = {
+        sun: [2026, 4, 26],
+        mon: [2026, 4, 27],
+        tue: [2026, 4, 28],
+        wed: [2026, 4, 29],
+        thu: [2026, 4, 30],
+      };
       const [y, M, d] = dayMap[day] || dayMap.mon;
       const [h, m] = start.split(':').map(Number);
       // Use local America/Vancouver — as a naive UTC offset (PT = UTC-7 in late April DST)
@@ -1071,6 +1086,37 @@ function trip() {
         }))
         .sort((a, b) => a.minutes - b.minutes);
       return rows.slice(0, 12);
+    },
+
+    // Build a multi-stop Apple Maps URL for the whole day's route.
+    // Apple Maps native format: maps.apple.com/?saddr=A&daddr=B+to:C+to:D
+    // daddr supports multi-stop via " to:" separators. lat,lng works everywhere.
+    appleMapsForDay(d) {
+      const home = window.locationById('airbnb');
+      const lane = this.blocks
+        .filter(b => b.day === d && b.locationId)
+        .filter(b => b.type !== 'buffer' && b.type !== 'synthesis')
+        .sort((a, b) => a.start.localeCompare(b.start));
+      // Dedupe consecutive same-location stops
+      const deduped = [];
+      for (const b of lane) {
+        const prev = deduped[deduped.length - 1];
+        if (!prev || prev.locationId !== b.locationId) deduped.push(b);
+      }
+      let locs = deduped.map(b => window.locationById(b.locationId)).filter(Boolean);
+      // Prepend home as start if not already there
+      if (home && locs.length > 0 && locs[0].id !== 'airbnb' && d !== 'sun' && d !== 'thu') {
+        locs = [home, ...locs];
+      }
+      if (locs.length < 2) {
+        // Fall back to just opening home
+        return home ? `https://maps.apple.com/?q=${home.lat},${home.lng}` : 'https://maps.apple.com/';
+      }
+      const saddr = `${locs[0].lat},${locs[0].lng}`;
+      const daddrStops = locs.slice(1).map((l, i) => i === 0 ? `${l.lat},${l.lng}` : `${l.lat},${l.lng}`);
+      // Apple Maps uses "+to:" as the stop separator
+      const daddr = daddrStops.join('+to:');
+      return `https://maps.apple.com/?saddr=${saddr}&daddr=${daddr}&dirflg=d`;
     },
 
     // ---- Travel buffer insertion on lock-in / drop ----

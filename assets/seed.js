@@ -445,6 +445,22 @@ const T = (day, start, duration, team, type, title, opts = {}) => ({
 
 // --- DAY-BY-DAY PRE-FILLED SCHEDULE -----------------------------------------
 window.SCHEDULE_SEED = {
+  // --- Sunday Apr 26 · Outbound travel ---
+  sun: [
+    T("sun", "07:30",  20, "both", "travel", "Depart YYZ (Flair F8 601) + Jen YUL (AC 301)", { locationId: "yvr", brief: "PK/Katie/Mike 07:40 ET. Jen 07:30 ET direct to YVR." }),
+    T("sun", "09:50",  20, "both", "buffer", "Wheels down YVR (both flights)",                 { locationId: "yvr" }),
+    T("sun", "10:10",  50, "both", "buffer", "Bags · Budget rental pickup · gear load",        { locationId: "yvr", brief: "Budget conf. 44192600CA4 · Nissan Kicks · reservation PAUL LAWTON." }),
+    T("sun", "11:45",  45, "both", "travel", "Drive YVR → Horseshoe Bay",                       { locationId: "horseshoe_bay" }),
+    T("sun", "12:30",  30, "both", "meal",   "Lunch · walkable from car queue",                 { locationId: "horseshoe_bay", brief: "Check in at ferry BEFORE lunch (Joe's rec). BC Ferries closes check-in 30 min before sailing." }),
+    T("sun", "13:30",  40, "both", "travel", "Ferry HSB → Langdale (Route 3)",                  { locationId: "langdale", brief: "Reserved. Booked online.", locked: true }),
+    T("sun", "14:10",  20, "both", "travel", "Drive Langdale → Gibsons/Sechelt for coffee",    { locationId: "gibsons", brief: "Better coffee + scenery than Langdale itself (Joe's rec)." }),
+    T("sun", "14:30", 105, "both", "travel", "Drive Sunshine Coast → Earls Cove",              { locationId: "earls_cove", brief: "1h 30–45m along Hwy 101." }),
+    T("sun", "16:15",  25, "both", "buffer", "Queue for Earls Cove ferry",                      { locationId: "earls_cove", brief: "Confirm exact Sunday sailing time." }),
+    T("sun", "16:40",  50, "both", "travel", "Ferry Earls Cove → Saltery Bay (Route 7)",       { locationId: "saltery_bay", brief: "Walk-on, ~50 min." }),
+    T("sun", "17:30",  30, "both", "travel", "Drive Saltery Bay → Powell River",                { locationId: "airbnb" }),
+    T("sun", "18:00",  90, "both", "buffer", "Arrive Airbnb (4312 Fernwood Ave) · settle in",   { locationId: "airbnb", brief: "Blissful Sunsets Airbnb · conf. HMZ54NNSW · host +1 604-741-1162." }),
+    T("sun", "19:30",  90, "both", "meal",   "Team dinner + Day 1 briefing",                    { locationId: "airbnb" }),
+  ],
   mon: [
     // PK + Jen lane
     T("mon", "08:30", 120, "pk_jen", "archival",  "qathet Museum & Archives — deep dive",      { locationId: "museum", brief: "Photos, names, dates, citations." }),
@@ -519,6 +535,22 @@ window.SCHEDULE_SEED = {
     T("wed", "17:30",  60, "mike_katie", "broll",   "★ Mill tour at golden hour",                       { locationId: "meridian", locked: true }),
     T("wed", "19:00",  90, "mike_katie", "meal",    "Dinner · team celebration",                        { locationId: "marine_ave" }),
     T("wed", "20:30",  60, "mike_katie", "synthesis","Final synthesis huddle",                          { locationId: "airbnb", locked: true }),
+  ],
+  // --- Thursday Apr 30 · Return travel ---
+  thu: [
+    T("thu", "04:45",  30, "both", "buffer", "Alarms · coffee · final pack",                  { locationId: "airbnb" }),
+    T("thu", "05:15",  30, "both", "travel", "Depart Airbnb → Saltery Bay",                    { locationId: "saltery_bay", brief: "Keys per host instructions." }),
+    T("thu", "05:45",  40, "both", "buffer", "Saltery Bay terminal · 40-min buffer",           { locationId: "saltery_bay", brief: "Check @BCFerries Wed night AND Thu 4:30 AM for sailing status." }),
+    T("thu", "06:25",  50, "both", "travel", "Ferry Saltery Bay → Earls Cove (Route 7)",       { locationId: "earls_cove", brief: "First sailing. Non-reservable. Non-negotiable.", locked: true }),
+    T("thu", "07:30", 105, "both", "travel", "Drive Earls Cove → Langdale",                    { locationId: "langdale", brief: "PK voice-memo synthesis en route (1h 45m along Hwy 101)." }),
+    T("thu", "09:15",  75, "both", "buffer", "Langdale terminal · 75-min buffer",              { locationId: "langdale" }),
+    T("thu", "10:30",  40, "both", "travel", "Ferry Langdale → Horseshoe Bay (Route 3)",       { locationId: "horseshoe_bay", brief: "Reserved — booked online.", locked: true }),
+    T("thu", "11:10",  45, "both", "travel", "Drive Horseshoe Bay → YVR",                      { locationId: "yvr" }),
+    T("thu", "11:55",  20, "both", "buffer", "Arrive YVR · offload gear",                      { locationId: "yvr" }),
+    T("thu", "12:15",  15, "both", "buffer", "Budget rental returned (pre-photograph)",        { locationId: "yvr" }),
+    T("thu", "12:30",  60, "both", "buffer", "Check-in · bag drop · security",                 { locationId: "yvr" }),
+    T("thu", "13:30",  60, "both", "buffer", "At gate · 60-min buffer",                        { locationId: "yvr" }),
+    T("thu", "14:30",  30, "both", "travel", "Flights depart YVR",                              { locationId: "yvr", brief: "AC 116 direct YYZ · Jen via YYZ + YYC. Expected home: PK/Katie/Mike 22:08 ET · Jen 01:51 ET (Fri)." }),
   ],
 };
 

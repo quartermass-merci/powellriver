@@ -35,6 +35,18 @@ window.LOCATIONS = [
   { id: "gibsons",       name: "Gibsons",                    addr: "Gibsons, BC",                     lat: 49.4006, lng: -123.5089, cat: "food" },
   { id: "sechelt",       name: "Sechelt",                    addr: "Sechelt, BC",                     lat: 49.4744, lng: -123.7560, cat: "food" },
   { id: "yvr",           name: "YVR Airport (Main)",         addr: "Richmond, BC",                    lat: 49.1947, lng: -123.1792, cat: "airport" },
+
+  // --- Points of interest (bathrooms, parks, coffee, grocery) ---
+  { id: "willingdon_beach", name: "Willingdon Beach (park + WC)", addr: "Marine Ave, Powell River",   lat: 49.8554, lng: -124.5399, cat: "poi" },
+  { id: "westview_park",    name: "Westview Park (marina WC)",     addr: "Westview, Powell River",     lat: 49.8320, lng: -124.5303, cat: "poi" },
+  { id: "rec_complex",      name: "qathet Recreation Complex",     addr: "5001 Joyce Ave, Powell River", lat: 49.8418, lng: -124.5139, cat: "poi" },
+  { id: "mowat_bay",        name: "Mowat Bay (lake + WC)",         addr: "Mowat Bay Rd, Powell River", lat: 49.9108, lng: -124.4895, cat: "poi" },
+  { id: "base_camp",        name: "Base Camp Coffee",              addr: "Marine Ave, Powell River",   lat: 49.8360, lng: -124.5266, cat: "poi" },
+  { id: "thaidal_zone",     name: "Thaidal Zone Eatery",           addr: "Marine Ave, Powell River",   lat: 49.8362, lng: -124.5271, cat: "poi" },
+  { id: "save_on",          name: "Save-On-Foods (grocery)",       addr: "Crossroads Village, Powell River", lat: 49.8412, lng: -124.5107, cat: "poi" },
+  { id: "liquor_store",     name: "BC Liquor Store",               addr: "Joyce Ave, Powell River",    lat: 49.8397, lng: -124.5115, cat: "poi" },
+  { id: "art_gallery",      name: "Powell River Art Gallery",       addr: "Marine Ave, Powell River",   lat: 49.8371, lng: -124.5261, cat: "poi" },
+  { id: "lund_hotel",        name: "Historic Lund Hotel",           addr: "Lund, BC",                   lat: 49.9822, lng: -124.7603, cat: "poi" },
 ];
 
 // Manual overrides for known legs (minutes). Use when straight-line estimate

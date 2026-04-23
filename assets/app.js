@@ -14,6 +14,32 @@ function trip() {
     moveHistory: [],
     recording: { blockId: null, supported: typeof window !== 'undefined' && (!!window.SpeechRecognition || !!window.webkitSpeechRecognition) },
     _recognition: null,
+    guideScratchpad: '',
+
+    // Subject → guide mapping for the Conversation Guide reference table
+    guideMapping: [
+      { name: 'Craig Austin / Ewan Moir', day: 'Mon', guide: 'T1+T2B', story: 'S2 S3' },
+      { name: 'Chris McDonough',          day: 'Mon', guide: 'T1+T2B', story: 'S1 S4', variant: 'Partner' },
+      { name: 'River City Coffee',        day: 'Mon', guide: 'T1',     story: 'S1' },
+      { name: 'Andrew Hand',              day: 'Tue', guide: 'T1+T2A', story: 'S2 S3' },
+      { name: 'Braden DeCorby',           day: 'Tue', guide: 'T1+T2A', story: 'S2 S3' },
+      { name: 'Josh Rettie',              day: 'Tue', guide: 'T1+T2A', story: 'S1 S5' },
+      { name: 'Kelly Storm',              day: 'Tue', guide: 'T1+T2A', story: 'S2 S5' },
+      { name: 'Sam Naso',                 day: 'Tue', guide: 'T1+T2A', story: 'S1' },
+      { name: 'Kristian Hansen',          day: 'Tue', guide: 'T1+T2A', story: 'S2' },
+      { name: 'Denise Berg',              day: 'Tue', guide: 'T1+T2A' },
+      { name: 'Kelly Brooks',             day: 'Tue', guide: 'T1+T2A', story: 'S5' },
+      { name: 'Dave Dowling',             day: 'Tue', guide: 'T1+T2A', story: 'S2 S3' },
+      { name: 'Lene Lindstrom',           day: 'Tue', guide: 'T1+T2A', story: 'S2 S3' },
+      { name: 'Roundtable',               day: 'Tue', guide: 'T1+T2A', story: 'S2', variant: 'Roundtable' },
+      { name: 'Brent B',                  day: 'Wed', guide: 'T1+T2B', story: 'S4 S5 S6' },
+      { name: 'Wayne Walsh',              day: 'Wed', guide: 'T1+T2B', story: 'S2 S3 S4' },
+      { name: 'PR Peak',                  day: 'Wed', guide: 'T1+T2B', story: 'S1 S4 S6', variant: 'Journalist' },
+      { name: 'Dispensary (TBD)',         day: 'Wed', guide: 'T1+T2B', story: 'S1 S4', variant: 'Partner' },
+      { name: 'Forrest Staff',            day: 'Wed', guide: 'T1',     story: 'S1 S3 S6' },
+      { name: 'MOTS (30+)',               day: 'All', guide: 'T1',     variant: 'Quick Card' },
+      { name: 'Tom Ligocki',              day: 'Pre/Post', guide: 'T1+T2A', story: 'S3 S4' },
+    ],
     version: '1.0',
     connState: 'connecting',
     lastEditedBy: null,
@@ -201,20 +227,20 @@ function trip() {
 
     dayLabel(d) {
       return {
-        sun: 'Sunday · Apr 26',
-        mon: 'Monday · Apr 27',
-        tue: 'Tuesday · Apr 28',
-        wed: 'Wednesday · Apr 29',
-        thu: 'Thursday · Apr 30',
+        sun: 'April 26 · Outbound Travel',
+        mon: 'April 27 · Community Immersion',
+        tue: 'April 28 · Meridian On-Site',
+        wed: 'April 29 · Mill Tour and Story Hunting',
+        thu: 'April 30 · Return Travel',
       }[d] || d;
     },
     dayHeadline(d) {
       return {
-        sun: 'Outbound travel. YYZ + YUL → YVR → ferry → ferry → Powell River. Team dinner + Day 1 briefing by 19:30.',
-        mon: 'Townsite, archives, Hulks. First community interviews — Craig/Ewan, Chris McDonough. Marine Ave MOTS set 1.',
-        tue: 'Full Meridian embed. 4 formals + 4 shorts + roundtable. Staff lunch 12–1 in the parking lot.',
-        wed: 'Stories, characters, mill tour at sunset. Brent B south at 8 AM. 12–15 story candidates by end of day.',
-        thu: 'Return travel. 06:25 Saltery Bay sailing is non-negotiable. 10:30 Langdale→HSB reserved. 14:30 YVR→home.',
+        sun: 'Getting there. Two flights into YVR, the Budget pickup, the drive up to Horseshoe Bay, both ferry legs, arrive at the Airbnb before dark. Dinner together and the Monday briefing by 19:30.',
+        mon: 'Townsite, the archives, the Hulks. First real conversations — Craig and Ewan at the mill, Chris McDonough late afternoon. Mike and Katie run the first MOTS batch on Marine Ave.',
+        tue: 'The full embed. Four formal sit-downs, four shorter ones, the cultivation roundtable. Staff lunch together in the parking lot — cameras rolling quietly.',
+        wed: 'The day the character work happens. Brent B first thing south of the city. Wayne in town late morning. Lunch at Forrest. Peak in the afternoon. Mill tour at golden hour.',
+        thu: 'Heading home. The 06:25 Saltery Bay sailing is the first domino — if we miss it, the whole day slips. Langdale → Horseshoe Bay reserved at 10:30. Flights out of YVR at 14:30.',
       }[d] || '';
     },
 
@@ -705,6 +731,50 @@ function trip() {
       this.showToast(`Reset — ${fresh.length} blocks restored${preservedCount ? ' · ' + preservedCount + ' notes preserved' : ''}`);
     },
 
+    // ---- Guide scratchpad (voice + paste, not tied to a meeting) ----
+    toggleGuideRecording() {
+      if (this.recording.blockId === '__guide__') {
+        if (this._recognition) { try { this._recognition.stop(); } catch (e) {} }
+        this.recording.blockId = null;
+        return;
+      }
+      if (!this.recording.supported) { this.showToast('Voice capture needs Chrome/Edge. Paste your transcript instead.'); return; }
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const r = new SR();
+      r.continuous = true;
+      r.interimResults = false;
+      r.lang = 'en-US';
+      r.onresult = (ev) => {
+        const text = Array.from(ev.results).slice(ev.resultIndex).map(res => res[0].transcript).join(' ').trim();
+        if (!text) return;
+        this.guideScratchpad = (this.guideScratchpad || '') + (this.guideScratchpad && !this.guideScratchpad.endsWith('\n') ? ' ' : '') + text + ' ';
+      };
+      r.onerror = (ev) => { console.warn('speech', ev.error); this.recording.blockId = null; };
+      r.onend = () => { if (this.recording.blockId === '__guide__') { try { r.start(); } catch (e) { this.recording.blockId = null; } } };
+      try { r.start(); } catch (e) { this.showToast('Recording failed: ' + e.message); return; }
+      this._recognition = r;
+      this.recording.blockId = '__guide__';
+    },
+
+    appendGuideTimestamp() {
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      const ts = `[${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}]`;
+      this.guideScratchpad = (this.guideScratchpad || '') + (this.guideScratchpad && !this.guideScratchpad.endsWith('\n') ? '\n' : '') + `${ts} `;
+    },
+
+    exportGuideScratchpad() {
+      const text = this.guideScratchpad || '';
+      if (!text.trim()) return;
+      const blob = new Blob([text], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `meridian-scratchpad-${new Date().toISOString().slice(0, 10)}.txt`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    },
+
     // ---- CSV export of all notes ----
     exportNotesCsv() {
       const rows = [['Day', 'Start', 'End', 'Team', 'Location', 'Title', 'Attendees', 'Brief', 'Notes']];
@@ -836,6 +906,7 @@ function trip() {
       lodging: '#556B4F', facility: '#2B3A2E', interview: '#8B5A2B',
       archival: '#7B5E3A', food: '#C9A270', mots: '#44546A',
       media: '#6B1D1D', broll: '#B58C5A', ferry: '#6B6B6B', airport: '#6B6B6B',
+      poi: '#9B8259',
     },
 
     initMap() {
@@ -867,10 +938,12 @@ function trip() {
 
       window.LOCATIONS.forEach(l => {
         const color = this._catColor[l.cat] || '#2B3A2E';
+        const isPoi = l.cat === 'poi';
+        const size = isPoi ? 12 : 18;
         const icon = L.divIcon({
-          className: 'marker-pin',
-          html: `<div class="marker-dot" style="background:${color}"></div>`,
-          iconSize: [18, 18], iconAnchor: [9, 9],
+          className: 'marker-pin' + (isPoi ? ' marker-pin--poi' : ''),
+          html: `<div class="marker-dot" style="background:${color};width:${size}px;height:${size}px;${isPoi ? 'opacity:0.75;border-width:1px;' : ''}"></div>`,
+          iconSize: [size, size], iconAnchor: [size/2, size/2],
         });
         const marker = L.marker([l.lat, l.lng], { icon }).addTo(m);
         marker.on('click', () => {
@@ -1092,6 +1165,40 @@ function trip() {
     },
 
     get focusedBlock() { return this.focusedBlockId ? this.blockById(this.focusedBlockId) : null; },
+
+    // Next block in the same lane after the focused block.
+    _nextBlockInLane(b) {
+      return this.blocks
+        .filter(x => x.day === b.day && (x.team === b.team || (b.team === 'both' && x.team !== 'both')) && x.id !== b.id && x.start > b.start && x.locationId)
+        .filter(x => x.type !== 'buffer' && x.type !== 'synthesis')
+        .sort((a, c) => a.start.localeCompare(c.start))[0];
+    },
+
+    get directionsFromFocused() {
+      const b = this.focusedBlock;
+      if (!b || !b.locationId) return null;
+      const next = this._nextBlockInLane(b);
+      if (!next || !next.locationId || next.locationId === b.locationId) return null;
+      const fromLoc = window.locationById(b.locationId);
+      const toLoc = window.locationById(next.locationId);
+      if (!fromLoc || !toLoc) return null;
+      const thisEnd = this.addMinutes(b.start, b.duration);
+      const gap = this._minutesBetween(thisEnd, next.start);
+      const minutes = window.driveMinutes(b.locationId, next.locationId);
+      const cacheKey = `${fromLoc.lng},${fromLoc.lat};${toLoc.lng},${toLoc.lat}`;
+      const cached = this.osrmCache[cacheKey];
+      return {
+        toName: toLoc.name,
+        nextTitle: next.title,
+        nextStart: next.start,
+        minutes,
+        distanceKm: cached ? cached.km : null,
+        gap,
+        tight: minutes > gap + 1,
+        googleUrl: `https://www.google.com/maps/dir/?api=1&origin=${fromLoc.lat},${fromLoc.lng}&destination=${toLoc.lat},${toLoc.lng}&travelmode=driving`,
+        appleUrl:  `https://maps.apple.com/?saddr=${fromLoc.lat},${fromLoc.lng}&daddr=${toLoc.lat},${toLoc.lng}&dirflg=d`,
+      };
+    },
 
     get directionsToFocused() {
       const b = this.focusedBlock;

@@ -353,59 +353,59 @@ window.CONTACTS = {
 // Gmail deep-link format: https://mail.google.com/mail/?view=cm&fs=1&to=&su=&body=
 window.INTRO_TEMPLATES = {
   warm_joe: (ii, b) => ({
-    senderLabel: "Warm intro · Joe → interviewee",
-    subject: `Quick intro — Sister Merci / Meridian research project`,
+    senderLabel: "Warm intro from Joe",
+    subject: `Quick intro, Sister Merci / Meridian research`,
     body:
       `Hi ${firstName(ii.name)},\n\n` +
-      `Hope you're doing well. I'd like to introduce you to PK Lawton from Sister Merci — the brand strategy firm we've brought on for the Meridian 125W research phase in Powell River (Apr 26–30).\n\n` +
+      `Quick one. PK Lawton and Jen from Sister Merci are in Powell River Apr 27–29 doing the groundwork for the Meridian brand project I've talked to you about. I'd like them to sit down with you.\n\n` +
       `${whyYou(ii)}\n\n` +
-      (b ? `They've blocked ${dateTimeLabel(b)} (${b.duration} min) ${b.locationId ? 'at ' + locLabel(b.locationId) : ''} — ${ii.format === 'formal' ? 'a formal sit-down with PK and Jen' : 'a short conversation'}. ` : '') +
-      `PK will follow up directly to confirm logistics.\n\n` +
-      `Thanks,\nJoe`,
+      (b ? `They've blocked ${dateTimeLabel(b)} (${b.duration} min)${b.locationId ? ', ' + locLabel(b.locationId) : ''}. ` : '') +
+      `PK will be in touch directly. If the timing's off, tell him — he'll move it.\n\n` +
+      `Appreciated,\nJoe`,
     from: "joe",
   }),
   cold_pk: (ii, b) => ({
-    senderLabel: "Cold outreach · PK",
-    subject: `Sister Merci × Meridian 125W — ${b ? dateTimeLabel(b) + ' ' : ''}conversation`,
+    senderLabel: "Cold outreach from PK",
+    subject: `Sister Merci / Meridian 125W${b ? ' · ' + dateTimeLabel(b) : ''}`,
     body:
       `Hi ${firstName(ii.name)},\n\n` +
-      `I'm PK Lawton, Chief Strategy Officer at Sister Merci. We're leading the brand research for Meridian 125W, and Joe ${ii.introNote && ii.introNote.includes('Joe') ? 'mentioned you as a voice we need in this work' : 'suggested I reach out'}.\n\n` +
+      `I'm PK with Sister Merci. We're doing the brand research for Meridian 125W, and Joe ${ii.introNote && /joe/i.test(ii.introNote) ? "flagged you as someone I need to talk to" : "suggested I reach out"}.\n\n` +
       `${whyYou(ii)}\n\n` +
       (b
-        ? `I'd love to carve out ${b.duration} minutes ${dateTimeLabel(b)} to talk. We'd come to ${b.locationId ? locLabel(b.locationId) : 'wherever works for you'}. If that timing doesn't work, I'm flexible on Mon–Wed that week.\n\n`
-        : `I'd love to find ${ii.duration || 30} minutes Mon–Wed (Apr 27–29) to talk. Happy to come to you.\n\n`) +
-      `Short background on what we're working on: we're researching the story of Meridian and Powell River for a brand film + strategy work. It's not a puff piece — we want the honest version.\n\n` +
-      `Let me know what works. Appreciate it.\n\n` +
-      `— PK\nPK Lawton · Sister Merci\npk@sistermerci.com`,
+        ? `Could we sit down for ${b.duration} minutes ${dateTimeLabel(b)}? I'd come to you${b.locationId ? ' at ' + locLabel(b.locationId) : ''}. If that doesn't work, any time Mon–Wed (Apr 27–29) is open — I'll fit around you.\n\n`
+        : `Could we find ${ii.duration || 30} minutes Mon–Wed (Apr 27–29)? I'd come to you.\n\n`) +
+      `What this is: brand research for a Meridian film and strategy project. We want the honest take, not the brochure version.\n\n` +
+      `What works?\n\n` +
+      `PK\nPK Lawton, Sister Merci\npk@sistermerci.com`,
     from: "pk",
   }),
   cold_katie: (ii, b) => ({
-    senderLabel: "Cold outreach · Katie",
-    subject: `Sister Merci × Meridian 125W — short visit ${b ? dateTimeLabel(b) : 'next week'}`,
+    senderLabel: "Cold outreach from Katie",
+    subject: `Sister Merci / Meridian 125W${b ? ' · short visit ' + dateTimeLabel(b) : ''}`,
     body:
       `Hi ${firstName(ii.name)},\n\n` +
-      `I'm Katie, the director of photography working with Sister Merci on the Meridian 125W brand film. We'll be in Powell River ${b ? dateTimeLabel(b).toLowerCase() : 'next week'} and would love to swing by.\n\n` +
+      `Katie here. I'm shooting a brand film for Meridian 125W with the Sister Merci team, and we'll be in Powell River${b ? ' on ' + dateTimeLabel(b).toLowerCase() : ' Mon–Wed Apr 27–29'}. I'd love to swing by.\n\n` +
       `${whyYou(ii)}\n\n` +
       (b
-        ? `We're thinking ${b.duration} minutes ${dateTimeLabel(b)} ${b.locationId ? 'at ' + locLabel(b.locationId) : ''} — low-key, just me + Mike (audio), maybe a short portrait. `
-        : `We're thinking ${ii.duration || 15}–20 minutes, low-key — just me + Mike, maybe a short portrait. `) +
-      `Nothing you need to prep for.\n\n` +
-      `Let me know if that works, or if a different slot Mon–Wed (Apr 27–29) is easier.\n\n` +
-      `Thanks,\nKatie`,
+        ? `${b.duration} minutes ${dateTimeLabel(b)}${b.locationId ? ', ' + locLabel(b.locationId) : ''}. `
+        : `${ii.duration || 15}–20 minutes, any slot Mon–Wed works. `) +
+      `Low-key. Just me and Mike on audio, probably a short portrait. Nothing you need to prep.\n\n` +
+      `What works?\n\n` +
+      `Katie`,
     from: "katie",
   }),
   confirm: (ii, b) => ({
-    senderLabel: "Confirmation (day-before reminder)",
-    subject: b ? `Confirming ${dateTimeLabel(b)} — Meridian 125W research` : `Confirming our time — Meridian 125W research`,
+    senderLabel: "Day-before confirmation",
+    subject: b ? `Confirming ${dateTimeLabel(b)}` : `Confirming our time`,
     body:
       `Hi ${firstName(ii.name)},\n\n` +
       (b
-        ? `Just confirming we're on for ${dateTimeLabel(b)} (${b.duration} min) ${b.locationId ? 'at ' + locLabel(b.locationId) : ''}.\n\n`
-        : `Just confirming our time ahead of next week.\n\n`) +
-      `I'll have Jen with me (note-taking). It'll be an easy conversation — no prep needed on your end. ${ii.format === 'short' ? 'Expect about 20 minutes, tops.' : 'About ' + (b ? b.duration : ii.duration || 30) + ' minutes.'}\n\n` +
-      `Text me at +1 XXX-XXX-XXXX if anything changes on the day.\n\n` +
-      `Looking forward.\n\n` +
-      `— PK`,
+        ? `Confirming ${dateTimeLabel(b)}, ${b.duration} min${b.locationId ? ', ' + locLabel(b.locationId) : ''}.\n\n`
+        : `Confirming our time ahead of next week.\n\n`) +
+      `I'll have Jen with me for notes. Easy conversation, nothing to prep${ii.format === 'short' ? '. Should be 20 minutes, tops' : ''}.\n\n` +
+      `Text me day-of if anything shifts.\n\n` +
+      `See you then.\n\n` +
+      `PK`,
     from: "pk",
   }),
 };
@@ -426,10 +426,11 @@ function dateTimeLabel(b) {
   return `${dayName} · ${b.start} PT`;
 }
 function whyYou(ii) {
-  // One-liner explaining why THIS person matters — seeded from their role + intro note.
-  const rolePhrase = ii.role ? `As ${ii.role.toLowerCase()}, your perspective is central to the story we're trying to tell.` : `Your perspective is central to the story we're trying to tell.`;
-  const prepHint = ii.introNote && !/joe/i.test(ii.introNote) ? ` ${ii.introNote}` : '';
-  return rolePhrase + prepHint;
+  // One-liner explaining why this person matters. Skips the intro note if it
+  // references Joe (orchestration detail, not for the first email).
+  const note = ii.introNote && !/joe/i.test(ii.introNote) ? ii.introNote : '';
+  if (note) return note;
+  return `We want your take on Meridian, on this place, and on what the mill site means to the community.`;
 }
 
 // Helpers for schedule construction

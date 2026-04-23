@@ -213,21 +213,28 @@ html, body {
 }
 
 /* Side drawer */
+/* Drawer stacks ABOVE Leaflet (whose controls are z-index 1000). */
 .drawer-backdrop {
   position: fixed; inset: 0;
   background: rgba(31,31,31,0.28);
   backdrop-filter: blur(2px);
-  z-index: 40;
+  z-index: 2000;
 }
 .drawer {
   position: fixed; top: 0; right: 0; bottom: 0;
   width: min(460px, 92vw);
   background: var(--sm-paper);
   border-left: 1px solid var(--sm-line);
-  z-index: 41;
+  z-index: 2001;
   overflow-y: auto;
   box-shadow: -14px 0 40px rgba(0,0,0,0.1);
 }
+
+/* Ensure the map's containing div doesn't escape the page flow — Leaflet
+   sometimes sets containing block to static which lets absolute children
+   render anywhere. Clip to the panel. */
+#map-el { position: relative; isolation: isolate; }
+.leaflet-container { z-index: 0; }
 
 /* Map markers legend */
 .legend-dot {

@@ -72,7 +72,7 @@
   <nav class="border-b border-line bg-paper sticky top-0 z-30 no-print">
     <div class="max-w-7xl mx-auto px-6 flex items-center justify-between">
       <div class="flex">
-        <template x-for="t in ['Action Items','Schedule','Logistics']" :key="t">
+        <template x-for="t in ['Action Items','Schedule','Guide','Logistics']" :key="t">
           <button class="nav-btn" :class="tab===t.toLowerCase().replace(' ','-') ? 'active' : ''"
                   @click="tab = t.toLowerCase().replace(' ','-')" x-text="t"></button>
         </template>
@@ -276,11 +276,11 @@
       <div class="flex items-center gap-2 mb-4 flex-wrap">
         <span class="font-mono text-[10px] tracking-[0.18em] uppercase opacity-60 mr-1">Day</span>
         <template x-for="d in [
-            ['sun','Sun · Apr 26 · Outbound'],
-            ['mon','Mon · Apr 27 · Community Voices'],
-            ['tue','Tue · Apr 28 · Facility Embed'],
-            ['wed','Wed · Apr 29 · Stories + Mill Tour'],
-            ['thu','Thu · Apr 30 · Return']
+            ['sun','Apr 26 · Outbound Travel'],
+            ['mon','Apr 27 · Community Immersion'],
+            ['tue','Apr 28 · Meridian On-Site'],
+            ['wed','Apr 29 · Mill Tour + Story Hunting'],
+            ['thu','Apr 30 · Return Travel']
           ]" :key="d[0]">
           <button class="day-pill"
                   :class="day===d[0] ? 'day-pill--active' : ''"
@@ -417,6 +417,202 @@
             </template>
           </tbody>
         </table>
+      </div>
+    </section>
+
+    <!-- ============ CONVERSATION GUIDE ============ -->
+    <section class="section" x-show="tab==='guide'" id="guide">
+      <div class="flex items-end justify-between mb-5 flex-wrap gap-4">
+        <div>
+          <div class="stamp">Phase One · Field Research</div>
+          <h1 class="font-display text-4xl mt-3">Conversation Guide</h1>
+          <p class="text-ink-2/80 max-w-2xl mt-2">Three tiers plus a Story Layer. Every conversation uses Tier 1. Add the matching Tier 2 module depending on who you're talking to. The Story Layer is always on — a posture more than a question set.</p>
+        </div>
+        <div class="flex flex-col gap-2">
+          <a class="btn" href="voicememos://" title="Opens Apple Voice Memos on iPhone/iPad. On other devices, use the Record button in any meeting's Field Notes.">● Open Voice Memos</a>
+          <button class="btn secondary" @click="toggleGuideRecording()" x-text="recording.blockId === '__guide__' ? '■ Stop recording' : '● Record scratchpad'"></button>
+          <button class="btn secondary !text-[10px]" @click="exportGuideScratchpad()" x-show="guideScratchpad && guideScratchpad.trim().length > 0">⬇ Export scratchpad</button>
+        </div>
+      </div>
+
+      <!-- Scratchpad — records general voice notes not tied to a specific meeting -->
+      <div class="card mb-5" x-show="guideScratchpad || recording.blockId === '__guide__'" x-transition>
+        <div class="flex items-center justify-between">
+          <div class="stamp">Scratchpad · raw notes</div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs opacity-60" x-show="recording.blockId === '__guide__'">Recording — speak naturally.</span>
+            <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="appendGuideTimestamp()">+ Timestamp</button>
+          </div>
+        </div>
+        <textarea class="textarea mt-2" rows="6" x-model="guideScratchpad" placeholder="Raw voice-note transcript lands here. Paste phone transcripts too."></textarea>
+      </div>
+
+      <!-- Rules of engagement — high-signal, field-facing -->
+      <div class="card mb-5">
+        <div class="stamp">Rules of engagement</div>
+        <ul class="mt-3 space-y-2 text-sm">
+          <li><b>Never read questions off a sheet.</b> Know the core five. Let them come out naturally. Chase prompts are there if someone stalls or gives a surface answer.</li>
+          <li><b>Stories over opinions.</b> If someone says "it's great," chase: "Tell me about a specific time." Every adjective should be backed by a scene.</li>
+          <li><b>Record everything.</b> Audio always. Video where appropriate. MOTS get phone video at minimum.</li>
+          <li><b>Capture the sentence, not the paragraph.</b> Flag anything you'd put on a billboard with a ★ so we can find it in transcript review.</li>
+          <li><b>Don't correct or educate.</b> If someone misunderstands what Meridian does, that's data. The awareness gap is a research finding.</li>
+          <li><b>Chase the true-ish.</b> If someone says there were cage fights at Forrest, or UFO sightings over Powell Lake, or that the building is haunted — that's gold. Don't fact-check in the moment. Capture it, note the source, move on.</li>
+          <li><b>The landscape is an actor.</b> Powell Lake, the Hulks, the ferry, the rain, the isolation. These aren't backdrop — they're characters. When someone mentions them, follow it.</li>
+          <li><b>Consent before cameras.</b> Verbal for audio, written release for any footage we may use externally. Carry release forms.</li>
+        </ul>
+      </div>
+
+      <!-- Tier 1: Core five -->
+      <div class="card mb-5">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="stamp ok">Tier 1 · Universal core</div>
+            <p class="text-xs opacity-60 mt-2">The spine of every conversation. MOTS use Q1–Q3 and close with Q5. Formals use all five with room to breathe.</p>
+          </div>
+        </div>
+        <ol class="mt-4 space-y-4 text-sm">
+          <li><div class="font-display text-base">Q1. "What comes to mind when you think of Powell River?"</div>
+            <div class="text-xs opacity-70 mt-1">Chase: "What's one thing about this place that surprised you — or that surprises people who visit?"</div>
+            <div class="text-xs opacity-60 mt-1 italic">Opens place narrative. Works for residents, employees, outsiders.</div></li>
+          <li><div class="font-display text-base">Q2. "What do you know about what's happening at the old mill site?"</div>
+            <div class="text-xs opacity-70 mt-1">Chase: "How did you first hear about it?" or "What have people around you said about it?"</div>
+            <div class="text-xs opacity-60 mt-1 italic">Tests the awareness gap. Delta between reality and perception is our most important finding.</div></li>
+          <li><div class="font-display text-base">Q3. "If you had to describe Meridian to someone who'd never heard of it, what would you say?"</div>
+            <div class="text-xs opacity-70 mt-1">Chase (outsiders): "What would you guess a cannabis company inside a former paper mill is like?"</div>
+            <div class="text-xs opacity-60 mt-1 italic">Brand perception baseline. The guess itself is diagnostic.</div></li>
+          <li><div class="font-display text-base">Q4. "What's changed here in the last five years?"</div>
+            <div class="text-xs opacity-70 mt-1">Chase: "Is that change something people are proud of, worried about, or both?"</div>
+            <div class="text-xs opacity-60 mt-1 italic">Surfaces tension between heritage and transformation. Feeds the "second life" narrative.</div></li>
+          <li><div class="font-display text-base">Q5. "What would you want someone from outside this community to understand about this place?"</div>
+            <div class="text-xs opacity-70 mt-1">Chase: "What do people get wrong about Powell River?"</div>
+            <div class="text-xs opacity-60 mt-1 italic">Emotional closer. Surfaces pride, protectiveness, and NIMBYism signals.</div></li>
+        </ol>
+      </div>
+
+      <!-- MOTS Quick Card -->
+      <div class="card mb-5">
+        <div class="stamp">MOTS quick card</div>
+        <p class="text-xs opacity-60 mt-2">For Mike + Katie street intercepts. Three questions, two minutes, one usable clip.</p>
+        <div class="mt-3 space-y-2 text-sm">
+          <div><b>Open:</b> "We're doing a story about Powell River. What comes to mind when you think of this place?"</div>
+          <div><b>Probe:</b> "Do you know what's happening at the old mill site? What have you heard?"</div>
+          <div><b>Story:</b> "What's the weirdest or most unexplainable thing about living here?"</div>
+          <div><b>Close:</b> "What should someone from outside this community understand about it?"</div>
+          <div class="text-xs opacity-70 mt-2">If they mention cannabis or Meridian unprompted: "How would you describe them to a friend?"<br>If the story question lands: "Where did you hear that? Do other people know about it?"</div>
+        </div>
+      </div>
+
+      <!-- Tier 2A (employees) -->
+      <div class="card mb-5" x-data="{ open: false }">
+        <div class="flex items-center justify-between cursor-pointer" @click="open = !open">
+          <div>
+            <div class="stamp">Tier 2A · Meridian employees</div>
+            <p class="text-xs opacity-60 mt-2">Andrew, Braden, Josh, Kelly S, Sam, Kristian, Denise, Kelly B, Dave, Lene. Short: pick 2–3. Formal: all 6.</p>
+          </div>
+          <button class="btn secondary !py-1 !px-2 !text-[10px]" x-text="open ? 'Collapse' : 'Open'"></button>
+        </div>
+        <ol class="mt-4 space-y-3 text-sm" x-show="open" x-transition>
+          <li><b>QA1.</b> "Walk me through your day. What does the first hour here look like?" <span class="opacity-60 italic">Chase: what most people wouldn't expect.</span></li>
+          <li><b>QA2.</b> "What surprised you most when you started working here?" <span class="opacity-60 italic">Expectation vs reality — rich for Braden, Dave, Lene.</span></li>
+          <li><b>QA3.</b> "What's the thing about this facility that only reveals itself after you've been here a while?" <span class="opacity-60 italic">Ghosts in the Machine. Competitors can't claim this without time in the building.</span></li>
+          <li><b>QA4.</b> "When a customer or partner visits, what do you want them to see?" <span class="opacity-60 italic">Bridges internal identity to external perception.</span></li>
+          <li><b>QA5.</b> "What's different about how Meridian works compared to other places you've been?" <span class="opacity-60 italic">Competitive differentiation from the inside.</span></li>
+          <li><b>QA6.</b> "If this brand had to prove one thing to the world, what should it prove?" <span class="opacity-60 italic">Closer. Feeds Reasons to Believe. Chase with "what you'd hate to see the brand get wrong."</span></li>
+        </ol>
+        <div class="mt-4 text-xs opacity-80" x-show="open">
+          <b>Roundtable variant</b> (Josh + Kelly S + Sam, Tuesday 15:30):
+          <div class="mt-1">Opener: "What's the thing the three of you argue about most?"</div>
+          <div>Middle: QA3 + QA5 as group prompts.</div>
+          <div>Closer: "What would you want a brand to never get wrong about what you do?"</div>
+        </div>
+      </div>
+
+      <!-- Tier 2B (community / external) -->
+      <div class="card mb-5" x-data="{ open: false }">
+        <div class="flex items-center justify-between cursor-pointer" @click="open = !open">
+          <div>
+            <div class="stamp">Tier 2B · External + community</div>
+            <p class="text-xs opacity-60 mt-2">Craig/Ewan, Chris, River City, Brent B, Wayne, PR Peak, Forrest staff, dispensary owners. Short: pick 2–3. Formal: all 5.</p>
+          </div>
+          <button class="btn secondary !py-1 !px-2 !text-[10px]" x-text="open ? 'Collapse' : 'Open'"></button>
+        </div>
+        <ol class="mt-4 space-y-3 text-sm" x-show="open" x-transition>
+          <li><b>QB1.</b> "How did you first hear about Meridian — or about cannabis happening at the mill?" <span class="opacity-60 italic">Traces the information pathway + first framing.</span></li>
+          <li><b>QB2.</b> "What does the mill site mean to this community?" <span class="opacity-60 italic">Place-as-brand archaeology. Especially rich with Craig/Ewan, Wayne, anyone over 40.</span></li>
+          <li><b>QB3.</b> "What's the reputation of cannabis in Powell River? Has it shifted?" <span class="opacity-60 italic">Surfaces stigma, normalisation. Critical for positioning.</span></li>
+          <li><b>QB4.</b> "If Meridian became well-known beyond Powell River, what would that mean for this place?" <span class="opacity-60 italic">Tests the international framing against local sentiment. Surfaces NIMBY.</span></li>
+          <li><b>QB5.</b> "What's a story about this place that nobody's telling?" <span class="opacity-60 italic">Story-hunter. The cage fight rumours, the mill closure day, the unexpected pride moments.</span></li>
+        </ol>
+        <div class="mt-4 text-xs opacity-80 space-y-2" x-show="open">
+          <div>
+            <b>Partner/customer variant</b> (Chris McDonough, dispensary owners):<br>
+            "What made you choose Meridian before they had any brand at all?"<br>
+            "What do your customers say about the product? What do they <i>not</i> say?"<br>
+            "If Meridian's quality could talk, what would it tell people that the current packaging doesn't?"
+          </div>
+          <div>
+            <b>Journalist variant</b> (PR Peak):<br>
+            "What stories get traction in Powell River? What does the community pay attention to?"<br>
+            "Where does tension sit in this community right now — and is cannabis part of that, or separate from it?"
+          </div>
+        </div>
+      </div>
+
+      <!-- Story Layer -->
+      <div class="card mb-5" x-data="{ open: false }">
+        <div class="flex items-center justify-between cursor-pointer" @click="open = !open">
+          <div>
+            <div class="stamp warn">Story layer · always on</div>
+            <p class="text-xs opacity-60 mt-2">Not a tier — a posture. Cards in your back pocket. Drop them in when the moment opens up. Target: 20+ true-ish stories by Day 3.</p>
+          </div>
+          <button class="btn secondary !py-1 !px-2 !text-[10px]" x-text="open ? 'Collapse' : 'Open'"></button>
+        </div>
+        <div class="mt-4 space-y-3 text-sm" x-show="open" x-transition>
+          <div><b>QS1.</b> "What's the weirdest thing about this place?" <span class="opacity-60 italic">Gateway question. Low stakes, high yield.</span></div>
+          <div><b>QS2.</b> "Does this place have ghosts? Not just in the mill — anywhere." <span class="opacity-60 italic">The eerie. Ghosts in the Machine for employees; the past-that-won't-leave for locals.</span></div>
+          <div><b>QS3.</b> "If these walls could talk, what would they say?" <span class="opacity-60 italic">Historical mythology. Sante Veritas, Tilt, the American company that walked away.</span></div>
+          <div><b>QS4.</b> "What do people come to Powell River to escape?" <span class="opacity-60 italic">The draft dodger question, broadened. Back-to-the-landers, deliberate isolation, the grow culture that predates legalization.</span></div>
+          <div><b>QS5.</b> "What does this place do to people who stay?" <span class="opacity-60 italic">Place-as-forge. Isolation breeds self-reliance. The type it produces is the brand's emotional territory.</span></div>
+          <div><b>QS6.</b> "What's the thing about Powell River that no one writes about but everyone here knows?" <span class="opacity-60 italic">The deep cut. Use late, after trust is built. Ideally not on camera.</span></div>
+          <div class="mt-3 p-3 bg-mist/40 border-l-2 border-rust rounded-sm text-xs">
+            <b>Collection protocol.</b> Log every story in the Scratchpad above or a meeting's Field Notes. Each entry: the story, who told it, where, when, conviction rating 1–3. Cross-reference: if two people independently tell the same one, it's a myth that matters.
+          </div>
+        </div>
+      </div>
+
+      <!-- Subject → guide mapping -->
+      <div class="card mb-5">
+        <div class="stamp">Who gets which guide</div>
+        <table class="mt-3 w-full text-xs">
+          <thead class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">
+            <tr class="border-b border-line"><th class="text-left py-1.5">Subject</th><th class="text-left">Day</th><th class="text-left">Guide</th><th class="text-left">Story</th><th class="text-left">Variant</th></tr>
+          </thead>
+          <tbody>
+            <template x-for="r in guideMapping" :key="r.name">
+              <tr class="border-t border-line/50">
+                <td class="py-1.5" x-text="r.name"></td>
+                <td x-text="r.day"></td>
+                <td x-text="r.guide"></td>
+                <td x-text="r.story || '—'"></td>
+                <td x-text="r.variant || '—'"></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Output targets -->
+      <div class="card mb-5">
+        <div class="stamp">Output targets</div>
+        <ul class="mt-3 space-y-1.5 text-sm">
+          <li>30+ MOTS clips (Tier 1 quick card, 2–5 min each)</li>
+          <li>7 formal interviews (Tier 1 + full Tier 2, 30–45 min, PK + Jen)</li>
+          <li>6 short focused (Tier 1 + 2–3 from Tier 2, 15–20 min, Mike + Katie)</li>
+          <li>2 quick portraits (Tier 1 Q2 + Q5, 5–10 min — Dave &amp; Lene)</li>
+          <li>1 cultivation roundtable (30 min, both teams)</li>
+          <li>20+ true-ish stories in the Story Bank, categorised</li>
+          <li>12–15 story candidates ranked by end of Day 3</li>
+        </ul>
       </div>
     </section>
 
@@ -635,7 +831,7 @@
             <!-- Directions from previous block -->
             <template x-if="directionsToFocused">
               <div class="mt-5 border-t border-line pt-4">
-                <div class="stamp">Directions to here</div>
+                <div class="stamp">Getting here</div>
                 <div class="mt-2">
                   <div class="font-mono text-[11px] opacity-60">From previous</div>
                   <div class="font-display text-lg" x-text="directionsToFocused.fromName"></div>
@@ -644,10 +840,32 @@
                     <div class="font-mono text-xs opacity-70" x-show="directionsToFocused.distanceKm" x-text="directionsToFocused.distanceKm + ' km'"></div>
                   </div>
                   <div class="font-mono text-[11px] mt-1" :class="directionsToFocused.tight ? 'text-rust' : 'opacity-70'"
-                       x-text="directionsToFocused.tight ? ('▲ Only ' + directionsToFocused.gap + ' min gap — tight') : (directionsToFocused.gap + ' min gap allotted')"></div>
+                       x-text="directionsToFocused.tight ? ('▲ Only ' + directionsToFocused.gap + ' min gap \u2014 tight') : (directionsToFocused.gap + ' min gap allotted')"></div>
                   <div class="mt-2 flex flex-wrap gap-2">
                     <a class="btn secondary !py-1 !px-2 !text-[10px]" :href="directionsToFocused.googleUrl" target="_blank" rel="noopener">Google Maps</a>
                     <a class="btn secondary !py-1 !px-2 !text-[10px]" :href="directionsToFocused.appleUrl" target="_blank" rel="noopener">Apple Maps</a>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- What's next + how long to get there -->
+            <template x-if="directionsFromFocused">
+              <div class="mt-5 border-t border-line pt-4">
+                <div class="stamp">Up next</div>
+                <div class="mt-2">
+                  <div class="font-mono text-[11px] opacity-60" x-text="'At ' + directionsFromFocused.nextStart"></div>
+                  <div class="font-display text-lg leading-tight" x-text="directionsFromFocused.nextTitle"></div>
+                  <div class="text-xs opacity-70 mt-0.5" x-text="'@ ' + directionsFromFocused.toName"></div>
+                  <div class="flex items-baseline gap-3 mt-2">
+                    <div class="font-display text-2xl" x-text="directionsFromFocused.minutes + ' min drive'"></div>
+                    <div class="font-mono text-xs opacity-70" x-show="directionsFromFocused.distanceKm" x-text="directionsFromFocused.distanceKm + ' km'"></div>
+                  </div>
+                  <div class="font-mono text-[11px] mt-1" :class="directionsFromFocused.tight ? 'text-rust' : 'opacity-70'"
+                       x-text="directionsFromFocused.tight ? ('\u25B2 Only ' + directionsFromFocused.gap + ' min before it starts \u2014 cut it tight') : (directionsFromFocused.gap + ' min before it starts')"></div>
+                  <div class="mt-2 flex flex-wrap gap-2">
+                    <a class="btn secondary !py-1 !px-2 !text-[10px]" :href="directionsFromFocused.googleUrl" target="_blank" rel="noopener">Google Maps</a>
+                    <a class="btn secondary !py-1 !px-2 !text-[10px]" :href="directionsFromFocused.appleUrl" target="_blank" rel="noopener">Apple Maps</a>
                   </div>
                 </div>
               </div>

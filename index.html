@@ -470,7 +470,7 @@
                        draggable="true"
                        @dragstart="dragStart($event, b.id)"
                        @click="focusBlock(b.id); openBlock(b.id)">
-                    <span class="ttl" x-text="'★ ' + b.title + ' (both teams)'"></span>
+                    <span class="ttl" x-text="b.title + ' (both teams)'"></span>
                     <div class="meta" x-text="b.duration + 'm · ' + locationShort(b.locationId)"></div>
                   </div>
                 </template>

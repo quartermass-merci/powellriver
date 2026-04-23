@@ -16,7 +16,8 @@ function trip() {
     // data
     blocks: [],                // flat array of schedule blocks across all 3 days
     actions: [],
-    selectedBlockId: null,
+    selectedBlockId: null,      // opens edit drawer
+    focusedBlockId: null,       // detail strip + map focus (light-weight)
     toast: null,
     toastTimer: null,
 
@@ -26,6 +27,13 @@ function trip() {
     // map
     mapFromId: 'meridian',
     mapInstance: null,
+    mapMarkers: {},             // id -> L.marker
+    mapDayLayers: [],           // polylines + numbered pins for current day route
+    mapFocusLayer: null,        // polyline for the "from previous → focused" leg
+    mapPulse: null,             // pulsing marker on focused location
+    showRoutePK: true,
+    showRouteMK: true,
+    osrmCache: {},              // cache key "lng1,lat1;lng2,lat2" -> { minutes, km, coords, source }
     reorderPreview: null,
 
     // form
@@ -41,15 +49,16 @@ function trip() {
     BLOCK_TYPES: window.BLOCK_TYPES,
     NON_NEGOTIABLES: window.NON_NEGOTIABLES,
     logistics: window.LOGISTICS,
+    INTRO_TEMPLATES: window.INTRO_TEMPLATES,
 
     // ---- lifecycle ----
     init() {
       this.hydrateFromSeed();
       this.loadLocal();
       this.initFirebase();
-      // When tab changes to map, initMap() is called via x-effect in HTML.
-      // When the window regains focus, re-pull local (in case of multi-tab).
       window.addEventListener('beforeunload', () => this.saveLocal());
+      // Re-render day route when day changes
+      this.$watch && this.$watch('day', () => { this.focusedBlockId = null; this._clearFocusLeg && this._clearFocusLeg(); this._debouncedRenderRoute(); });
     },
 
     // ---- seed + local persistence ----
@@ -332,12 +341,20 @@ function trip() {
       const idx = this.blocks.findIndex(x => x.id === b.id);
       if (idx >= 0) this.blocks.splice(idx, 1, { ...b });
       this.pushRemote();
+      this._debouncedRenderRoute();
     },
     deleteBlock(b) {
-      this.blocks = this.blocks.filter(x => x.id !== b.id);
+      // Also remove any travel buffers adjacent to this block so we don't leave orphans
+      this.blocks = this.blocks.filter(x => x.id !== b.id && !(x.isTravelBuffer && this._adjacentToBlock(x, b)));
       this.selectedBlockId = null;
+      if (this.focusedBlockId === b.id) this.focusedBlockId = null;
       this.pushRemote();
       this.showToast('Deleted');
+      this._debouncedRenderRoute();
+    },
+    _debouncedRenderRoute() {
+      if (this._rrTimer) clearTimeout(this._rrTimer);
+      this._rrTimer = setTimeout(() => this.renderDayRoute(), 120);
     },
     addAction() {
       this.actions.push({ owner: 'PK', text: 'New item', status: 'pending' });
@@ -365,16 +382,20 @@ function trip() {
       };
       // Place it via the same push/swap logic as a drop
       this.blocks.push(newBlock);
-      // Remove it from "conflicts with itself" set by first leaving start as-is
-      // then running drop logic
       this.draggingId = id;
       this.onDropCell(f.team, f.start);
+      // Auto-insert travel buffers around the new meeting
+      this.insertTravelBuffers(newBlock);
       if (f.emitIcs)    this.downloadIcs(newBlock);
       if (f.emitMailto) this.openMailto(newBlock);
       this.showToast(`Locked in — ${newBlock.title}`);
       // Reset form (keep day/team)
       this.form.title = ''; this.form.attendees = ''; this.form.brief = '';
-      this.tab = 'timetable';
+      this.tab = 'schedule';
+      this.day = f.day;
+      this.focusBlock(newBlock.id);
+      // Re-draw the day route with the new block + buffer
+      this.$nextTick ? this.$nextTick(() => this.renderDayRoute()) : setTimeout(() => this.renderDayRoute(), 50);
     },
 
     // ---- .ics generation ----
@@ -428,29 +449,38 @@ function trip() {
     },
 
     // ---- Map ----
+    _catColor: {
+      lodging: '#556B4F', facility: '#2B3A2E', interview: '#8B5A2B',
+      archival: '#7B5E3A', food: '#C9A270', mots: '#44546A',
+      media: '#6B1D1D', broll: '#B58C5A', ferry: '#6B6B6B', airport: '#6B6B6B',
+    },
+
     initMap() {
       if (this.mapInstance) { setTimeout(() => this.mapInstance.invalidateSize(), 50); return; }
       if (typeof L === 'undefined') { setTimeout(() => this.initMap(), 200); return; }
       const el = document.getElementById('map-el');
       if (!el) return;
-      const m = L.map(el, { scrollWheelZoom: false }).setView([49.87, -124.54], 12);
+
+      // Wider default bounds: whole Upper Sunshine Coast, Brent B (south) to Lund (north).
+      const southWest = [49.72, -124.80];
+      const northEast = [50.00, -124.15];
+      const m = L.map(el, { scrollWheelZoom: false, zoomControl: true }).fitBounds([southWest, northEast]);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 18,
         attribution: '&copy; OpenStreetMap'
       }).addTo(m);
-      const catColor = {
-        lodging: '#556B4F', facility: '#2B3A2E', interview: '#8B5A2B',
-        archival: '#7B5E3A', food: '#C9A270', mots: '#44546A',
-        media: '#6B1D1D', broll: '#B58C5A', ferry: '#6B6B6B', airport: '#6B6B6B',
-      };
+
       window.LOCATIONS.forEach(l => {
-        const color = catColor[l.cat] || '#2B3A2E';
+        const color = this._catColor[l.cat] || '#2B3A2E';
         const icon = L.divIcon({
           className: 'marker-pin',
           html: `<div class="marker-dot" style="background:${color}"></div>`,
           iconSize: [18, 18], iconAnchor: [9, 9],
         });
         const marker = L.marker([l.lat, l.lng], { icon }).addTo(m);
+        marker.on('click', () => {
+          // Select this location in the focus block's "from" if it matches a block — otherwise just show drive times
+        });
         marker.bindPopup(() => {
           const nearest = this.driveBoard(l.id).slice(0, 5);
           const rows = nearest.map(r => `<li style="display:flex;justify-content:space-between;gap:12px;border-top:1px solid #ddd;padding:2px 0"><span>${r.name}</span><b>${r.minutes}m</b></li>`).join('');
@@ -461,11 +491,222 @@ function trip() {
             <ul style="list-style:none;padding:0;margin:4px 0 0;font-size:12px">${rows}</ul>
           </div>`;
         });
+        this.mapMarkers[l.id] = marker;
       });
-      // Fit to Powell River neighbourhood first (not all 26 locations including YVR)
-      const pr = window.LOCATIONS.filter(l => ['lodging','facility','archival','food','mots','media','interview','broll'].includes(l.cat));
-      m.fitBounds(pr.map(l => [l.lat, l.lng]), { padding: [40,40] });
+
       this.mapInstance = m;
+      // Render the initial day route after the map has layout
+      setTimeout(() => this.renderDayRoute(), 150);
+    },
+
+    // Clear the day-route layers (numbered pins + polylines)
+    _clearDayRoute() {
+      if (!this.mapInstance) return;
+      for (const layer of this.mapDayLayers) this.mapInstance.removeLayer(layer);
+      this.mapDayLayers = [];
+    },
+
+    // Draw numbered route for each enabled team for the selected day
+    renderDayRoute() {
+      if (!this.mapInstance) return;
+      this._clearDayRoute();
+      const drawTeam = (teamId, color) => {
+        const lane = this.blocks
+          .filter(b => b.day === this.day && (b.team === teamId || b.team === 'both') && b.locationId)
+          .filter(b => b.type !== 'buffer' && b.type !== 'synthesis')   // skip no-location-change filler
+          .sort((a, b) => a.start.localeCompare(b.start));
+        // Dedupe consecutive same-location stops
+        const deduped = [];
+        for (const b of lane) {
+          const prev = deduped[deduped.length - 1];
+          if (!prev || prev.locationId !== b.locationId) deduped.push(b);
+        }
+        // Draw polyline
+        const coords = deduped.map(b => {
+          const l = window.locationById(b.locationId);
+          return l ? [l.lat, l.lng] : null;
+        }).filter(Boolean);
+        if (coords.length >= 2) {
+          const line = L.polyline(coords, { color, weight: 3, opacity: 0.55, dashArray: '6 6' }).addTo(this.mapInstance);
+          this.mapDayLayers.push(line);
+        }
+        // Numbered pins at each stop
+        deduped.forEach((b, i) => {
+          const l = window.locationById(b.locationId);
+          if (!l) return;
+          const icon = L.divIcon({
+            className: 'route-num',
+            html: `<div class="route-num-dot" style="background:${color}">${i + 1}</div>`,
+            iconSize: [22, 22], iconAnchor: [11, 11],
+          });
+          const m = L.marker([l.lat, l.lng], { icon, zIndexOffset: 200 }).addTo(this.mapInstance);
+          m.bindTooltip(`${b.start} · ${b.title}`, { direction: 'top', offset: [0, -8] });
+          this.mapDayLayers.push(m);
+        });
+      };
+      if (this.showRoutePK) drawTeam('pk_jen',     '#2B3A2E');
+      if (this.showRouteMK) drawTeam('mike_katie', '#8B5A2B');
+      // Asynchronously fetch real road geometry and replace dashed lines with solid
+      this._enrichWithOSRM();
+    },
+
+    async _enrichWithOSRM() {
+      if (!this.mapInstance) return;
+      const fetchLeg = async (a, b) => {
+        const key = `${a.lng},${a.lat};${b.lng},${b.lat}`;
+        if (this.osrmCache[key]) return this.osrmCache[key];
+        try {
+          const url = `https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=full&geometries=geojson`;
+          const r = await fetch(url, { signal: AbortSignal.timeout ? AbortSignal.timeout(4000) : undefined });
+          if (!r.ok) throw new Error(r.status);
+          const d = await r.json();
+          const route = d.routes && d.routes[0];
+          if (!route) throw new Error('no route');
+          const coords = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+          const result = { coords, minutes: Math.round(route.duration / 60), km: (route.distance / 1000).toFixed(1), source: 'osrm' };
+          this.osrmCache[key] = result;
+          return result;
+        } catch (e) {
+          return null;
+        }
+      };
+      const drawTeam = async (teamId, color) => {
+        const lane = this.blocks
+          .filter(b => b.day === this.day && (b.team === teamId || b.team === 'both') && b.locationId)
+          .filter(b => b.type !== 'buffer' && b.type !== 'synthesis')
+          .sort((a, b) => a.start.localeCompare(b.start));
+        const deduped = [];
+        for (const b of lane) {
+          const prev = deduped[deduped.length - 1];
+          if (!prev || prev.locationId !== b.locationId) deduped.push(b);
+        }
+        const locs = deduped.map(b => window.locationById(b.locationId)).filter(Boolean);
+        const allCoords = [];
+        for (let i = 0; i < locs.length - 1; i++) {
+          const leg = await fetchLeg(locs[i], locs[i + 1]);
+          if (leg) allCoords.push(...leg.coords);
+        }
+        if (allCoords.length > 1) {
+          const line = L.polyline(allCoords, { color, weight: 3.5, opacity: 0.78 }).addTo(this.mapInstance);
+          this.mapDayLayers.push(line);
+        }
+      };
+      if (this.showRoutePK) drawTeam('pk_jen',     '#2B3A2E');
+      if (this.showRouteMK) drawTeam('mike_katie', '#8B5A2B');
+    },
+
+    // ---- Click-to-focus a block ----
+    focusBlock(id) {
+      this.focusedBlockId = (this.focusedBlockId === id) ? null : id;
+      if (!this.focusedBlockId) {
+        this._clearFocusLeg();
+        return;
+      }
+      const b = this.blockById(id);
+      if (!b) return;
+      const loc = b.locationId && window.locationById(b.locationId);
+      // Pulsing marker
+      if (this.mapInstance && loc) {
+        if (this.mapPulse) this.mapInstance.removeLayer(this.mapPulse);
+        const icon = L.divIcon({ className: 'pulse-pin', html: '<div class="pulse-dot"></div>', iconSize: [28, 28], iconAnchor: [14, 14] });
+        this.mapPulse = L.marker([loc.lat, loc.lng], { icon, zIndexOffset: 500 }).addTo(this.mapInstance);
+        this.mapInstance.panTo([loc.lat, loc.lng], { animate: true });
+      }
+      // Draw leg from previous block in the same lane
+      this._drawFocusLeg(b);
+    },
+
+    _clearFocusLeg() {
+      if (this.mapFocusLayer) { this.mapInstance.removeLayer(this.mapFocusLayer); this.mapFocusLayer = null; }
+      if (this.mapPulse) { this.mapInstance.removeLayer(this.mapPulse); this.mapPulse = null; }
+    },
+
+    _drawFocusLeg(b) {
+      if (!this.mapInstance || !b.locationId) return;
+      if (this.mapFocusLayer) { this.mapInstance.removeLayer(this.mapFocusLayer); this.mapFocusLayer = null; }
+      const prev = this._prevBlockInLane(b);
+      if (!prev || !prev.locationId || prev.locationId === b.locationId) return;
+      const fromLoc = window.locationById(prev.locationId);
+      const toLoc = window.locationById(b.locationId);
+      if (!fromLoc || !toLoc) return;
+      // Straight line first (instant); replace with OSRM if available
+      const straight = L.polyline([[fromLoc.lat, fromLoc.lng], [toLoc.lat, toLoc.lng]], {
+        color: '#A0462A', weight: 4, opacity: 0.85, dashArray: '3 6'
+      }).addTo(this.mapInstance);
+      this.mapFocusLayer = straight;
+      // Try OSRM async
+      const key = `${fromLoc.lng},${fromLoc.lat};${toLoc.lng},${toLoc.lat}`;
+      const cached = this.osrmCache[key];
+      const replace = (coords) => {
+        if (this.mapFocusLayer) this.mapInstance.removeLayer(this.mapFocusLayer);
+        this.mapFocusLayer = L.polyline(coords, { color: '#A0462A', weight: 4, opacity: 0.9 }).addTo(this.mapInstance);
+      };
+      if (cached) { replace(cached.coords); return; }
+      fetch(`https://router.project-osrm.org/route/v1/driving/${fromLoc.lng},${fromLoc.lat};${toLoc.lng},${toLoc.lat}?overview=full&geometries=geojson`)
+        .then(r => r.json())
+        .then(d => {
+          const route = d.routes && d.routes[0];
+          if (!route) return;
+          const coords = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+          this.osrmCache[key] = { coords, minutes: Math.round(route.duration / 60), km: (route.distance / 1000).toFixed(1), source: 'osrm' };
+          replace(coords);
+        })
+        .catch(() => {});
+    },
+
+    _prevBlockInLane(b) {
+      return this.blocks
+        .filter(x => x.day === b.day && (x.team === b.team || (b.team === 'both' && x.team !== 'both')) && x.id !== b.id && x.start < b.start && x.locationId)
+        .filter(x => x.type !== 'buffer' && x.type !== 'synthesis')
+        .sort((a, c) => a.start.localeCompare(c.start))
+        .pop();
+    },
+
+    get focusedBlock() { return this.focusedBlockId ? this.blockById(this.focusedBlockId) : null; },
+
+    get directionsToFocused() {
+      const b = this.focusedBlock;
+      if (!b || !b.locationId) return null;
+      const prev = this._prevBlockInLane(b);
+      if (!prev || !prev.locationId || prev.locationId === b.locationId) return null;
+      const fromLoc = window.locationById(prev.locationId);
+      const toLoc = window.locationById(b.locationId);
+      if (!fromLoc || !toLoc) return null;
+      const prevEnd = this.addMinutes(prev.start, prev.duration);
+      const gap = this._minutesBetween(prevEnd, b.start);
+      const minutes = window.driveMinutes(prev.locationId, b.locationId);
+      const cacheKey = `${fromLoc.lng},${fromLoc.lat};${toLoc.lng},${toLoc.lat}`;
+      const cached = this.osrmCache[cacheKey];
+      return {
+        fromName: fromLoc.name,
+        fromId: prev.locationId,
+        toName: toLoc.name,
+        minutes,
+        distanceKm: cached ? cached.km : null,
+        gap,
+        tight: minutes > gap + 1,
+        osrmNote: cached && cached.source === 'osrm' ? `Routing via OSRM · ${cached.minutes} min road time` : '',
+        googleUrl: `https://www.google.com/maps/dir/?api=1&origin=${fromLoc.lat},${fromLoc.lng}&destination=${toLoc.lat},${toLoc.lng}&travelmode=driving`,
+        appleUrl:  `https://maps.apple.com/?saddr=${fromLoc.lat},${fromLoc.lng}&daddr=${toLoc.lat},${toLoc.lng}&dirflg=d`,
+      };
+    },
+
+    get totalDriveSummary() {
+      const sum = (teamId) => {
+        const lane = this.blocks
+          .filter(b => b.day === this.day && (b.team === teamId || b.team === 'both') && b.locationId && b.type !== 'buffer' && b.type !== 'synthesis')
+          .sort((a, b) => a.start.localeCompare(b.start));
+        let total = 0, prev = 'airbnb';
+        for (const b of lane) { total += window.driveMinutes(prev, b.locationId); prev = b.locationId; }
+        return total;
+      };
+      const pk = this.showRoutePK ? sum('pk_jen') : 0;
+      const mk = this.showRouteMK ? sum('mike_katie') : 0;
+      if (!this.showRoutePK && !this.showRouteMK) return '';
+      const parts = [];
+      if (this.showRoutePK) parts.push(`PK+Jen ${pk}m`);
+      if (this.showRouteMK) parts.push(`M+K ${mk}m`);
+      return 'Total drive · ' + parts.join(' · ');
     },
 
     driveBoard(fromId) {
@@ -477,6 +718,101 @@ function trip() {
         }))
         .sort((a, b) => a.minutes - b.minutes);
       return rows.slice(0, 12);
+    },
+
+    // ---- Travel buffer insertion on lock-in / drop ----
+    insertTravelBuffers(block) {
+      if (!block || !block.locationId) return;
+      // Clean up any existing auto-inserted travel buffers adjacent to this block
+      // (they'll be re-created with correct durations below).
+      this.blocks = this.blocks.filter(x => !(x.isTravelBuffer && this._adjacentToBlock(x, block)));
+      const lane = this.blocks
+        .filter(x => x.day === block.day && x.team === block.team && x.id !== block.id)
+        .sort((a, b) => a.start.localeCompare(b.start));
+      const blockStart = this._toMin(block.start);
+      const blockEnd   = this._toMin(this.addMinutes(block.start, block.duration));
+
+      // Previous block (strictly ends <= blockStart)
+      const prev = lane.filter(x => this._toMin(this.addMinutes(x.start, x.duration)) <= blockStart).pop();
+      if (prev && prev.locationId && prev.locationId !== block.locationId) {
+        const drive = window.driveMinutes(prev.locationId, block.locationId);
+        const gap = blockStart - this._toMin(this.addMinutes(prev.start, prev.duration));
+        if (drive > 0 && gap > 0) {
+          const bufferDuration = Math.min(drive, gap);
+          const bufferStartMin = blockStart - bufferDuration;
+          this.blocks.push({
+            id: `tb_${Date.now().toString(36)}_p_${Math.random().toString(36).slice(2, 5)}`,
+            day: block.day, team: block.team,
+            start: this._fromMin(bufferStartMin),
+            duration: bufferDuration,
+            title: `Drive → ${this.locationShort(block.locationId)}`,
+            type: 'travel',
+            locationId: block.locationId,
+            brief: `${drive} min drive from ${this.locationLabel(prev.locationId)}${drive > gap ? ' · tight — gap is ' + gap + ' min' : ''}`,
+            locked: false,
+            interviewId: null,
+            attendees: '',
+            isTravelBuffer: true,
+          });
+        }
+      }
+      // Next block (strictly starts >= blockEnd)
+      const next = lane.find(x => this._toMin(x.start) >= blockEnd);
+      if (next && next.locationId && next.locationId !== block.locationId) {
+        const drive = window.driveMinutes(block.locationId, next.locationId);
+        const gap = this._toMin(next.start) - blockEnd;
+        if (drive > 0 && gap > 0) {
+          const bufferDuration = Math.min(drive, gap);
+          this.blocks.push({
+            id: `tb_${Date.now().toString(36)}_n_${Math.random().toString(36).slice(2, 5)}`,
+            day: block.day, team: block.team,
+            start: this._fromMin(blockEnd),
+            duration: bufferDuration,
+            title: `Drive → ${this.locationShort(next.locationId)}`,
+            type: 'travel',
+            locationId: next.locationId,
+            brief: `${drive} min drive to ${this.locationLabel(next.locationId)}${drive > gap ? ' · tight — gap is ' + gap + ' min' : ''}`,
+            locked: false,
+            interviewId: null,
+            attendees: '',
+            isTravelBuffer: true,
+          });
+        }
+      }
+      this.pushRemote();
+    },
+
+    _adjacentToBlock(buffer, block) {
+      if (buffer.day !== block.day || buffer.team !== block.team) return false;
+      const bStart = this._toMin(block.start);
+      const bEnd   = this._toMin(this.addMinutes(block.start, block.duration));
+      const tStart = this._toMin(buffer.start);
+      const tEnd   = this._toMin(this.addMinutes(buffer.start, buffer.duration));
+      return tEnd === bStart || tStart === bEnd;
+    },
+
+    // ---- Intro email drafter ----
+    draftIntro(interviewId, templateKey, blockHint) {
+      const ii = this.interviewById(interviewId);
+      if (!ii) { this.showToast('No interviewee on file'); return; }
+      const template = this.INTRO_TEMPLATES[templateKey];
+      if (!template) { this.showToast('Unknown template'); return; }
+      const block = blockHint || this.blocks.find(b => b.interviewId === interviewId) || null;
+      const draft = template(ii, block);
+      const to = encodeURIComponent(ii.email || '');
+      const su = encodeURIComponent(draft.subject || '');
+      const body = encodeURIComponent(draft.body || '');
+      // Gmail web: https://mail.google.com/mail/?view=cm&fs=1&to=...&su=...&body=...
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${to}&su=${su}&body=${body}`;
+      window.open(gmailUrl, '_blank', 'noopener');
+      this.showToast(`${draft.senderLabel || 'Draft'} → Gmail`);
+    },
+
+    // Helper for actions UI
+    actionIntervieweeName(a) {
+      if (!a.intervieweeId) return '';
+      const ii = this.interviewById(a.intervieweeId);
+      return ii ? ii.name : '';
     },
 
     // ---- TSP re-order (nearest neighbour) ----

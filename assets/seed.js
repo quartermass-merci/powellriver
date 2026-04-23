@@ -191,6 +191,247 @@ window.INTERVIEWS = [
   },
 ];
 
+// --- CONTACTS (keyed by interview id) ---------------------------------------
+// Best-effort LinkedIn searches + company URLs. Emails are blank by default —
+// fill them in as you confirm them (they go straight into the Gmail draft).
+const lnk = (q) => `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(q)}`;
+window.CONTACTS = {
+  craig_ewan: {
+    email: "",
+    linkedin: lnk("Craig Austin Powell River Mill"),
+    extraLinkedin: lnk("Ewan Moir Port Vancouver Red Cross"),
+    company: "Powell River Mill Project",
+    companyUrl: "",
+    intro: "Mill project CEO / COO. Warm intro via Joe recommended.",
+  },
+  chris_mcdonough: {
+    email: "",
+    linkedin: lnk("Chris McDonough High Quadz Powell River"),
+    company: "High Quadz",
+    companyUrl: "",
+    intro: "Meridian's first customer. PK can reach direct or via Joe.",
+  },
+  rivercity: {
+    email: "",
+    linkedin: "",
+    company: "River City Coffee",
+    companyUrl: "https://www.facebook.com/rivercitycoffee/",
+    intro: "Informal — Joe or Denise to text ahead.",
+  },
+  andrew_hand: {
+    email: "andrew@meridian125w.com",
+    linkedin: lnk("Andrew Hand Meridian cannabis Guelph"),
+    company: "Meridian 125W",
+    companyUrl: "https://meridian125w.com",
+    intro: "Already confirmed — send calendar hold + brief the night before.",
+  },
+  braden_decorby: {
+    email: "braden@meridian125w.com",
+    linkedin: lnk("Braden DeCorby Meridian facility"),
+    company: "Meridian 125W",
+    companyUrl: "https://meridian125w.com",
+    intro: "Already confirmed — send calendar hold.",
+  },
+  josh_rettie: {
+    email: "josh@meridian125w.com",
+    linkedin: lnk("Josh Rettie master grower"),
+    company: "Meridian 125W",
+    companyUrl: "https://meridian125w.com",
+    intro: "Already confirmed — send calendar hold.",
+  },
+  kelly_storm: {
+    email: "kelly.storm@meridian125w.com",
+    linkedin: lnk("Kelly Storm cultivation cannabis"),
+    company: "Meridian 125W",
+    companyUrl: "https://meridian125w.com",
+    intro: "Already confirmed.",
+  },
+  sam_naso: {
+    email: "sam@meridian125w.com",
+    linkedin: lnk("Sam Naso Powell River cannabis"),
+    company: "Meridian 125W",
+    companyUrl: "https://meridian125w.com",
+    intro: "Already confirmed.",
+  },
+  kristian_hansen: {
+    email: "kristian@meridian125w.com",
+    linkedin: lnk("Kristian Hansen Meridian security compliance"),
+    company: "Meridian 125W",
+    companyUrl: "https://meridian125w.com",
+    intro: "Already confirmed.",
+  },
+  denise_berg: {
+    email: "denise@meridian125w.com",
+    linkedin: lnk("Denise Berg Meridian partnerships"),
+    company: "Meridian 125W",
+    companyUrl: "https://meridian125w.com",
+    intro: "Already confirmed — she's our day-to-day contact.",
+  },
+  kelly_brooks: {
+    email: "kelly.brooks@meridian125w.com",
+    linkedin: lnk("Kelly Brooks cultivation Powell River"),
+    company: "Meridian 125W",
+    companyUrl: "https://meridian125w.com",
+    intro: "Already confirmed — Katie leads, soft approach.",
+  },
+  dave_lene: {
+    email: "",
+    linkedin: "",
+    company: "Meridian 125W (ex-Catalyst Paper)",
+    companyUrl: "https://meridian125w.com",
+    intro: "Joe to clear before filming — don't email directly until cleared.",
+  },
+  roundtable: {
+    email: "",
+    linkedin: "",
+    company: "Meridian 125W",
+    companyUrl: "https://meridian125w.com",
+    intro: "Josh + Kelly Storm + Sam — schedule via Denise.",
+  },
+  brent_b: {
+    email: "",
+    linkedin: lnk("Brent Wheelchair Weed Powell River"),
+    company: "Wheelchair Weed Craft Cannabis",
+    companyUrl: "https://www.wheelchairweed.ca",
+    intro: "PK to reach out directly. Cold outreach is fine here.",
+  },
+  wayne_walsh: {
+    email: "",
+    linkedin: lnk("Wayne Walsh Powell River construction"),
+    company: "",
+    companyUrl: "",
+    intro: "PK to reach out — Joe has his number.",
+  },
+  pr_peak: {
+    email: "editor@prpeak.com",
+    linkedin: lnk("Powell River Peak newsroom"),
+    company: "Powell River Peak",
+    companyUrl: "https://www.prpeak.com",
+    intro: "Joe or Denise to intro. Pitch is 'place-as-brand' not 'cover Meridian.'",
+  },
+  dispensary_tbd: {
+    email: "",
+    linkedin: "",
+    company: "",
+    companyUrl: "",
+    intro: "TBD via Joe.",
+  },
+  forrest_staff: {
+    email: "",
+    linkedin: "",
+    company: "Forrest Restaurant",
+    companyUrl: "",
+    intro: "Walk-in. Cameras ready, no advance email needed.",
+  },
+  tom_ligocki: {
+    email: "",
+    linkedin: lnk("Tom Ligocki Meridian Chairman"),
+    company: "Meridian 125W",
+    companyUrl: "https://meridian125w.com",
+    intro: "Remote video call — follow Joe's lead on timing.",
+  },
+};
+
+// Merge contacts into INTERVIEWS at load so downstream code sees one object.
+(function mergeContacts() {
+  window.INTERVIEWS.forEach(i => {
+    const c = window.CONTACTS[i.id] || {};
+    Object.assign(i, {
+      email: c.email || "",
+      linkedin: c.linkedin || "",
+      extraLinkedin: c.extraLinkedin || "",
+      company: c.company || "",
+      companyUrl: c.companyUrl || "",
+      introNote: c.intro || "",
+    });
+  });
+})();
+
+// --- INTRO EMAIL TEMPLATES --------------------------------------------------
+// Each template returns { subject, body, suggestedTo }. suggestedTo is whichever
+// email is on file (empty if we haven't added one yet — Gmail opens with To: blank).
+// Gmail deep-link format: https://mail.google.com/mail/?view=cm&fs=1&to=&su=&body=
+window.INTRO_TEMPLATES = {
+  warm_joe: (ii, b) => ({
+    senderLabel: "Warm intro · Joe → interviewee",
+    subject: `Quick intro — Sister Merci / Meridian research project`,
+    body:
+      `Hi ${firstName(ii.name)},\n\n` +
+      `Hope you're doing well. I'd like to introduce you to PK Lawton from Sister Merci — the brand strategy firm we've brought on for the Meridian 125W research phase in Powell River (Apr 26–30).\n\n` +
+      `${whyYou(ii)}\n\n` +
+      (b ? `They've blocked ${dateTimeLabel(b)} (${b.duration} min) ${b.locationId ? 'at ' + locLabel(b.locationId) : ''} — ${ii.format === 'formal' ? 'a formal sit-down with PK and Jen' : 'a short conversation'}. ` : '') +
+      `PK will follow up directly to confirm logistics.\n\n` +
+      `Thanks,\nJoe`,
+    from: "joe",
+  }),
+  cold_pk: (ii, b) => ({
+    senderLabel: "Cold outreach · PK",
+    subject: `Sister Merci × Meridian 125W — ${b ? dateTimeLabel(b) + ' ' : ''}conversation`,
+    body:
+      `Hi ${firstName(ii.name)},\n\n` +
+      `I'm PK Lawton, Chief Strategy Officer at Sister Merci. We're leading the brand research for Meridian 125W, and Joe ${ii.introNote && ii.introNote.includes('Joe') ? 'mentioned you as a voice we need in this work' : 'suggested I reach out'}.\n\n` +
+      `${whyYou(ii)}\n\n` +
+      (b
+        ? `I'd love to carve out ${b.duration} minutes ${dateTimeLabel(b)} to talk. We'd come to ${b.locationId ? locLabel(b.locationId) : 'wherever works for you'}. If that timing doesn't work, I'm flexible on Mon–Wed that week.\n\n`
+        : `I'd love to find ${ii.duration || 30} minutes Mon–Wed (Apr 27–29) to talk. Happy to come to you.\n\n`) +
+      `Short background on what we're working on: we're researching the story of Meridian and Powell River for a brand film + strategy work. It's not a puff piece — we want the honest version.\n\n` +
+      `Let me know what works. Appreciate it.\n\n` +
+      `— PK\nPK Lawton · Sister Merci\npk@sistermerci.com`,
+    from: "pk",
+  }),
+  cold_katie: (ii, b) => ({
+    senderLabel: "Cold outreach · Katie",
+    subject: `Sister Merci × Meridian 125W — short visit ${b ? dateTimeLabel(b) : 'next week'}`,
+    body:
+      `Hi ${firstName(ii.name)},\n\n` +
+      `I'm Katie, the director of photography working with Sister Merci on the Meridian 125W brand film. We'll be in Powell River ${b ? dateTimeLabel(b).toLowerCase() : 'next week'} and would love to swing by.\n\n` +
+      `${whyYou(ii)}\n\n` +
+      (b
+        ? `We're thinking ${b.duration} minutes ${dateTimeLabel(b)} ${b.locationId ? 'at ' + locLabel(b.locationId) : ''} — low-key, just me + Mike (audio), maybe a short portrait. `
+        : `We're thinking ${ii.duration || 15}–20 minutes, low-key — just me + Mike, maybe a short portrait. `) +
+      `Nothing you need to prep for.\n\n` +
+      `Let me know if that works, or if a different slot Mon–Wed (Apr 27–29) is easier.\n\n` +
+      `Thanks,\nKatie`,
+    from: "katie",
+  }),
+  confirm: (ii, b) => ({
+    senderLabel: "Confirmation (day-before reminder)",
+    subject: b ? `Confirming ${dateTimeLabel(b)} — Meridian 125W research` : `Confirming our time — Meridian 125W research`,
+    body:
+      `Hi ${firstName(ii.name)},\n\n` +
+      (b
+        ? `Just confirming we're on for ${dateTimeLabel(b)} (${b.duration} min) ${b.locationId ? 'at ' + locLabel(b.locationId) : ''}.\n\n`
+        : `Just confirming our time ahead of next week.\n\n`) +
+      `I'll have Jen with me (note-taking). It'll be an easy conversation — no prep needed on your end. ${ii.format === 'short' ? 'Expect about 20 minutes, tops.' : 'About ' + (b ? b.duration : ii.duration || 30) + ' minutes.'}\n\n` +
+      `Text me at +1 XXX-XXX-XXXX if anything changes on the day.\n\n` +
+      `Looking forward.\n\n` +
+      `— PK`,
+    from: "pk",
+  }),
+};
+
+function firstName(fullName) {
+  if (!fullName) return "there";
+  // handle "Dave Dowling + Lene Lindstrom" and "Craig Austin & Ewan Moir"
+  const cleaned = fullName.split(/\s*[+&]\s*/)[0];
+  return cleaned.split(/\s+/)[0];
+}
+function locLabel(id) {
+  const l = (window.LOCATIONS || []).find(x => x.id === id);
+  return l ? l.name : "";
+}
+function dateTimeLabel(b) {
+  if (!b) return "";
+  const dayName = { mon: "Mon Apr 27", tue: "Tue Apr 28", wed: "Wed Apr 29" }[b.day] || b.day;
+  return `${dayName} · ${b.start} PT`;
+}
+function whyYou(ii) {
+  // One-liner explaining why THIS person matters — seeded from their role + intro note.
+  const rolePhrase = ii.role ? `As ${ii.role.toLowerCase()}, your perspective is central to the story we're trying to tell.` : `Your perspective is central to the story we're trying to tell.`;
+  const prepHint = ii.introNote && !/joe/i.test(ii.introNote) ? ` ${ii.introNote}` : '';
+  return rolePhrase + prepHint;
+}
+
 // Helpers for schedule construction
 const T = (day, start, duration, team, type, title, opts = {}) => ({
   id: opts.id || `${day}_${team}_${start.replace(":", "")}_${Math.random().toString(36).slice(2,6)}`,
@@ -281,22 +522,26 @@ window.SCHEDULE_SEED = {
   ],
 };
 
-// Action items (editable in the Overview tab)
+// Action items (editable in the Overview tab).
+// `intervieweeId` + `template` let an item become a clickable "Draft intro"
+// button that opens Gmail pre-populated.
 window.ACTION_ITEMS = [
   { owner: "Joe",  text: "Full-day Tuesday embed",                                          status: "confirmed" },
   { owner: "Joe",  text: "Staff lunch 12–1 PM in parking lot",                              status: "confirmed" },
   { owner: "Joe",  text: "Borrowed vehicle (Joe's Jeep) — insurance + authorized drivers",  status: "in progress" },
   { owner: "Joe",  text: "Mill tour Wed ~1 hr before sunset — messaging mill team",         status: "in progress" },
-  { owner: "Joe",  text: "Clear Dave Dowling + Lene Lindstrom for portraits",                status: "pending" },
-  { owner: "Joe",  text: "Recommend one dispensary owner for Wednesday formal",              status: "pending" },
-  { owner: "Joe",  text: "Warm intros: Craig/Ewan, PR Peak, River City Coffee ownership",    status: "pending" },
-  { owner: "PK",   text: "Reach out to Chris McDonough for Monday late afternoon",           status: "pending" },
-  { owner: "PK",   text: "Reach out to Brent B for Wednesday 8 AM",                          status: "pending" },
-  { owner: "PK",   text: "Reach out to Wayne Walsh for Wednesday 11 AM",                     status: "pending" },
-  { owner: "PK",   text: "Schedule Tom Ligocki video call (follow Joe's lead)",              status: "pending" },
+  { owner: "Joe",  text: "Clear Dave Dowling + Lene Lindstrom for portraits",               status: "pending", intervieweeId: "dave_lene", template: "warm_joe" },
+  { owner: "Joe",  text: "Recommend one dispensary owner for Wednesday formal",             status: "pending", intervieweeId: "dispensary_tbd", template: "warm_joe" },
+  { owner: "Joe",  text: "Warm intro to Craig Austin & Ewan Moir",                          status: "pending", intervieweeId: "craig_ewan", template: "warm_joe" },
+  { owner: "Joe",  text: "Warm intro to Powell River Peak",                                 status: "pending", intervieweeId: "pr_peak",    template: "warm_joe" },
+  { owner: "Joe",  text: "Warm intro to River City Coffee ownership",                       status: "pending", intervieweeId: "rivercity",  template: "warm_joe" },
+  { owner: "PK",   text: "Reach out to Chris McDonough for Monday late afternoon",          status: "pending", intervieweeId: "chris_mcdonough", template: "cold_pk" },
+  { owner: "PK",   text: "Reach out to Brent B for Wednesday 8 AM",                         status: "pending", intervieweeId: "brent_b",    template: "cold_pk" },
+  { owner: "PK",   text: "Reach out to Wayne Walsh for Wednesday 11 AM",                    status: "pending", intervieweeId: "wayne_walsh", template: "cold_pk" },
+  { owner: "PK",   text: "Schedule Tom Ligocki video call (follow Joe's lead)",             status: "pending", intervieweeId: "tom_ligocki", template: "cold_pk" },
   { owner: "PK",   text: "Tier 2 outreach (dispensary owners, local long-timer, tradespeople)", status: "pending" },
-  { owner: "PK",   text: "Book HSB–Langdale ferries (Sun 1:30 PM + Thu 10:30 AM)",            status: "pending" },
-  { owner: "PK",   text: "Confirm Sunday Route 7 EC–SB sailing time for Apr 26",              status: "pending" },
+  { owner: "PK",   text: "Book HSB–Langdale ferries (Sun 1:30 PM + Thu 10:30 AM)",           status: "pending" },
+  { owner: "PK",   text: "Confirm Sunday Route 7 EC–SB sailing time for Apr 26",             status: "pending" },
 ];
 
 window.NON_NEGOTIABLES = {

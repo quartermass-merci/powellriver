@@ -883,6 +883,18 @@
             </div>
             <p class="weird-drawer__summary" x-text="ev.summary"></p>
             <p class="weird-drawer__story" x-text="ev.story"></p>
+            <!-- Go-there links — Apple Maps + Google Maps at the event's coords -->
+            <div class="weird-drawer__actions">
+              <a class="btn secondary !text-[10px]"
+                 :href="'https://maps.apple.com/?q=' + ev.lat + ',' + ev.lng + '&t=h'"
+                 target="_blank" rel="noopener">📍 Apple Maps</a>
+              <a class="btn secondary !text-[10px]"
+                 :href="'https://www.google.com/maps/search/?api=1&query=' + ev.lat + ',' + ev.lng"
+                 target="_blank" rel="noopener">Google Maps</a>
+              <a class="btn secondary !text-[10px]"
+                 :href="'https://maps.apple.com/?daddr=' + ev.lat + ',' + ev.lng + '&dirflg=d'"
+                 target="_blank" rel="noopener">↗ Directions</a>
+            </div>
             <div class="weird-drawer__source">
               <span class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-55">Source</span>
               <span x-text="ev.source"></span>

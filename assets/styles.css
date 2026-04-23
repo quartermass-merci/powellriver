@@ -1453,6 +1453,13 @@ section.section { scroll-margin-top: 80px; }
   line-height: 1.6;
   margin-top: 1.2rem;
 }
+.weird-drawer__actions {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
 .weird-drawer__source {
   margin-top: 1.5rem;
   padding-top: 1rem;

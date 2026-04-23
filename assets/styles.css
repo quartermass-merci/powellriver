@@ -554,6 +554,24 @@ table td, table th {
 }
 .day-pill--active .day-pill__date { opacity: 0.7; }
 
+/* Open-calendar-spot card on the Outreach page */
+.slot-card {
+  display: block;
+  text-align: left;
+  padding: 0.85rem 1rem;
+  background: var(--sm-paper);
+  border: 1px solid var(--sm-line);
+  border-left: 3px solid var(--sm-forest-2);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+  font-family: inherit;
+}
+.slot-card:hover {
+  background: var(--sm-mist);
+  border-left-color: var(--sm-forest);
+}
+
 /* Time-slot pill — smaller, for the Available Slots picker in the action drawer */
 .slot-pill {
   display: inline-flex;

@@ -107,49 +107,107 @@
         </button>
       </div>
 
-      <!-- Grouped by status -->
-      <template x-for="status in ['pending','in progress','confirmed','done']" :key="status">
-        <div class="mb-4" x-show="actionFilter==='all' || actionFilter===status || (actionFilter==='pending' && (status==='pending' || status==='in progress')) || (actionFilter==='confirmed' && (status==='confirmed' || status==='done'))">
-          <div class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-50 mb-1.5 px-1" x-text="status + ' · ' + actionsByStatus(status).length"></div>
-          <div class="panel">
-            <template x-for="(a, i) in actionsByStatus(status)" :key="a._idx">
-              <div class="action-row" :data-status="a.status"
-                   :class="{ 'action-row--open': focusedActionIdx === a._idx }"
-                   @click="openAction(a._idx)">
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-baseline gap-2 flex-wrap">
-                    <template x-if="a.intervieweeId">
+      <!-- ===== PEOPLE ===== Interviewee-linked rows, grouped by status ===== -->
+      <div class="mb-8">
+        <h2 class="font-display text-2xl mb-3">People to lock in</h2>
+        <template x-for="status in ['pending','in progress','confirmed','done']" :key="status">
+          <div class="mb-3" x-show="actionFilter==='all' || actionFilter===status || (actionFilter==='pending' && (status==='pending' || status==='in progress')) || (actionFilter==='confirmed' && (status==='confirmed' || status==='done'))">
+            <div class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-50 mb-1.5 px-1" x-text="status + ' · ' + peopleByStatus(status).length"></div>
+            <div class="panel">
+              <template x-for="a in peopleByStatus(status)" :key="a._idx">
+                <div class="action-row" :data-status="a.status"
+                     :class="{ 'action-row--open': focusedActionIdx === a._idx }"
+                     @click="openAction(a._idx)">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-baseline gap-2 flex-wrap">
                       <span class="who" x-text="actionIntervieweeName(a)"></span>
+                      <span class="font-mono text-[9px] uppercase tracking-[0.15em] opacity-40" x-text="a.owner"></span>
+                    </div>
+                    <div class="ask" x-text="a.text"></div>
+                    <template x-if="actionBlockSummary(a)">
+                      <div class="font-mono text-[10px] opacity-55 mt-0.5" x-text="actionBlockSummary(a)"></div>
                     </template>
-                    <template x-if="!a.intervieweeId">
-                      <span class="who italic opacity-70">Ad-hoc</span>
-                    </template>
-                    <span class="font-mono text-[9px] uppercase tracking-[0.15em] opacity-40" x-text="a.owner"></span>
                   </div>
-                  <div class="ask" x-text="a.text"></div>
-                  <template x-if="actionBlockSummary(a)">
-                    <div class="font-mono text-[10px] opacity-55 mt-0.5" x-text="actionBlockSummary(a)"></div>
-                  </template>
-                </div>
-                <div class="flex items-center gap-2 shrink-0" @click.stop>
-                  <template x-if="a.intervieweeId">
+                  <div class="flex items-center gap-2 shrink-0" @click.stop>
                     <button class="btn !py-1 !px-2 !text-[10px]"
                             :title="'Draft intro email in Gmail'"
                             @click="draftIntro(a.intervieweeId, a.template || 'cold_pk')">Draft</button>
-                  </template>
-                  <select class="select !w-24 !py-1 !text-[11px]" x-model="a.status" @change="saveActions()">
-                    <option>pending</option><option>in progress</option><option>confirmed</option><option>done</option>
-                  </select>
-                  <button class="btn-text !text-[14px] opacity-40 hover:opacity-100" @click="removeActionByIdx(a._idx)">×</button>
+                    <select class="select !w-24 !py-1 !text-[11px]" x-model="a.status" @change="saveActions()">
+                      <option>pending</option><option>in progress</option><option>confirmed</option><option>done</option>
+                    </select>
+                    <button class="btn-text !text-[14px] opacity-40 hover:opacity-100" @click="removeActionByIdx(a._idx)">×</button>
+                  </div>
                 </div>
-              </div>
+              </template>
+              <template x-if="peopleByStatus(status).length === 0">
+                <div class="text-xs opacity-50 p-4 italic">Nothing here yet.</div>
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- ===== OPEN CALENDAR SPOTS ===== Free gaps on field days ===== -->
+      <div class="mb-8">
+        <div class="flex items-baseline justify-between mb-3 flex-wrap gap-2">
+          <div>
+            <h2 class="font-display text-2xl">Open calendar spots</h2>
+            <p class="text-xs opacity-65 mt-0.5">Free windows on the field days. Tap any spot to start an ad-hoc booking in that slot.</p>
+          </div>
+          <span class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-50" x-text="openSpots.length + ' windows · 30 min+'"></span>
+        </div>
+        <div class="panel p-1">
+          <div class="grid md:grid-cols-2 gap-1">
+            <template x-for="spot in openSpots" :key="spot.day + spot.team + spot.start">
+              <button class="slot-card" @click="bookOpenSpot(spot)">
+                <div class="flex items-baseline justify-between">
+                  <div class="font-display text-lg" x-text="dayLabel(spot.day)"></div>
+                  <div class="font-mono text-[11px] opacity-65" x-text="(TEAMS[spot.team]||{}).label"></div>
+                </div>
+                <div class="font-mono text-sm mt-1" x-text="spot.start + '–' + spot.end"></div>
+                <div class="font-mono text-[11px] opacity-70 mt-0.5" x-text="(spot.minutes >= 60 ? Math.floor(spot.minutes/60) + 'h ' + (spot.minutes%60 ? (spot.minutes%60) + 'm' : '') : spot.minutes + ' min') + ' open'"></div>
+              </button>
             </template>
-            <template x-if="actionsByStatus(status).length === 0">
-              <div class="text-xs opacity-50 p-4 italic">Nothing here yet.</div>
+            <template x-if="openSpots.length === 0">
+              <div class="p-4 text-xs opacity-55 italic">No open windows — every lane is full across the field days. Delete or shorten a block to free up time.</div>
             </template>
           </div>
         </div>
-      </template>
+      </div>
+
+      <!-- ===== LEADS ===== Tasks + things to pursue, no specific person yet ===== -->
+      <div class="mb-8">
+        <div class="flex items-baseline justify-between mb-3">
+          <div>
+            <h2 class="font-display text-2xl">Leads to pursue</h2>
+            <p class="text-xs opacity-65 mt-0.5">Categories, logistics, side-quests. Not tied to a specific person yet.</p>
+          </div>
+          <button class="btn-text" @click="addLead()">+ Add lead</button>
+        </div>
+        <div class="panel">
+          <template x-for="a in leads" :key="a._idx">
+            <div class="action-row" :data-status="a.status"
+                 :class="{ 'action-row--open': focusedActionIdx === a._idx }"
+                 @click="openAction(a._idx)">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-baseline gap-2 flex-wrap">
+                  <span class="who italic" x-text="a.text"></span>
+                  <span class="font-mono text-[9px] uppercase tracking-[0.15em] opacity-40" x-text="a.owner"></span>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 shrink-0" @click.stop>
+                <select class="select !w-24 !py-1 !text-[11px]" x-model="a.status" @change="saveActions()">
+                  <option>pending</option><option>in progress</option><option>confirmed</option><option>done</option>
+                </select>
+                <button class="btn-text !text-[14px] opacity-40 hover:opacity-100" @click="removeActionByIdx(a._idx)">×</button>
+              </div>
+            </div>
+          </template>
+          <template x-if="leads.length === 0">
+            <div class="text-xs opacity-50 p-4 italic">No loose leads. Add one with "+ Add lead".</div>
+          </template>
+        </div>
+      </div>
     </section>
 
     <!-- ============ LOGISTICS ============ -->

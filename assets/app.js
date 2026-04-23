@@ -552,6 +552,96 @@ function trip() {
         .filter(a => a.status === status);
     },
 
+    // People rows (have an intervieweeId). Filtered to a status.
+    peopleByStatus(status) {
+      return this.actions
+        .map((a, _idx) => ({ ...a, _idx }))
+        .filter(a => !!a.intervieweeId && a.status === status);
+    },
+
+    // Leads — ideas + tasks without an intervieweeId.
+    get leads() {
+      return this.actions
+        .map((a, _idx) => ({ ...a, _idx }))
+        .filter(a => !a.intervieweeId);
+    },
+
+    // Open Calendar Spots — free gaps in each team lane on each field day,
+    // within business hours (08:00–21:00 for Mon/Tue, 08:00–22:00 Wed).
+    // Only gaps of 30+ minutes surface.
+    get openSpots() {
+      const out = [];
+      const ranges = {
+        mon: [8 * 60, 21 * 60],
+        tue: [8 * 60, 21 * 60],
+        wed: [8 * 60, 22 * 60],
+      };
+      for (const [day, [startMin, endMin]] of Object.entries(ranges)) {
+        for (const team of ['pk_jen', 'mike_katie']) {
+          const lane = this.blocks
+            .filter(b => b.day === day && b.team === team)
+            .map(b => ({
+              start: this._toMin(b.start),
+              end:   this._toMin(this.addMinutes(b.start, b.duration)),
+            }))
+            .sort((a, b) => a.start - b.start);
+          let cursor = startMin;
+          for (const slot of lane) {
+            if (slot.start > cursor + 15) {
+              const size = slot.start - cursor;
+              if (size >= 30) {
+                out.push({
+                  day, team,
+                  start: this._fromMin(cursor),
+                  end:   this._fromMin(slot.start),
+                  minutes: size,
+                });
+              }
+            }
+            cursor = Math.max(cursor, slot.end);
+          }
+          if (endMin > cursor + 30) {
+            out.push({
+              day, team,
+              start: this._fromMin(cursor),
+              end:   this._fromMin(endMin),
+              minutes: endMin - cursor,
+            });
+          }
+        }
+      }
+      return out.sort((a, b) => b.minutes - a.minutes);
+    },
+
+    // Open the booking drawer pre-filled with a free slot + create a draft action.
+    bookOpenSpot(spot) {
+      this.actions.push({
+        owner: 'PK',
+        text: 'Ad-hoc booking',
+        status: 'pending',
+        _auto: false,
+      });
+      const idx = this.actions.length - 1;
+      this.saveActions();
+      this.openAction(idx);
+      // Override actionForm with the spot's details
+      this.actionForm = {
+        day: spot.day, start: spot.start,
+        duration: Math.min(30, spot.minutes),
+        team: spot.team,
+        locationId: '', title: '',
+      };
+    },
+
+    // Add a new "lead" — a task with no intervieweeId. Opens for editing.
+    addLead() {
+      this.actions.push({
+        owner: 'PK', text: 'New lead', status: 'pending',
+      });
+      this.saveActions();
+      this.openAction(this.actions.length - 1);
+    },
+
     // Make sure every interview block has a row on the Outreach page.
     // Creates a lightweight auto-action for any intervieweeId missing one.
     // Marked with _auto so we know it wasn't a deliberate human entry.

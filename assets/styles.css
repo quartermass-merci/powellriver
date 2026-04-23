@@ -12,6 +12,33 @@
   --sm-gold: #C9A270;
   --sm-rust: #A0462A;
   --sm-blood: #6B1D1D;
+
+  /* TYPE SYSTEM — tokens by role, not value. */
+  --font-sans:    'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Fraunces', 'Cormorant Garamond', Georgia, serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Scale (17px base). Four weights max: 400/500 for sans, 450/550 for
+     Fraunces, 500 for mono. Anything else gets rounded. */
+  --fs-cap:     0.72rem;   /* ~12.25px  micro labels, stamps */
+  --fs-small:   0.85rem;   /* ~14.5px   metadata, tertiary text */
+  --fs-body:    1rem;      /*  17px     primary UI + long-form */
+  --fs-lead:    1.15rem;   /* ~19.5px   section leads, prominent labels */
+  --fs-h4:      1.35rem;   /* ~23px     card titles */
+  --fs-h3:      1.75rem;   /* ~29.75px  section heads inside a card */
+  --fs-h2:      2.35rem;   /* ~40px     page subheads */
+  --fs-h1:      3rem;      /*  51px     page titles */
+
+  --lh-display: 1.08;      /* tight headings */
+  --lh-heading: 1.2;       /* card titles */
+  --lh-body:    1.55;      /* long-form */
+  --lh-mono:    1.35;
+
+  --ls-display: -0.01em;
+  --ls-mono:    0.12em;    /* single value — consistent across all mono all-caps */
+
+  --measure:    60ch;      /* default long-form max width */
+  --measure-sm: 52ch;      /* page subtitles */
 }
 
 html {
@@ -30,31 +57,61 @@ html {
 .text-\[9px\]  { font-size: 11px !important; }
 .text-xs       { font-size: 0.82rem !important; line-height: 1.45; }
 
-html, body {
+body {
   background: var(--sm-bone);
   color: var(--sm-ink);
-  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
   font-feature-settings: "ss01", "cv11";
   -webkit-font-smoothing: antialiased;
-  line-height: 1.5;
+  -moz-osx-font-smoothing: grayscale;
+  font-kerning: normal;
+  line-height: var(--lh-body);
+  text-rendering: optimizeLegibility;
+}
+html {
+  background: var(--sm-bone);
+  color: var(--sm-ink);
 }
 
+/* Body copy inherits the base. Headings tighten line-height via class. */
+p { max-width: var(--measure); }
+p.lead, .lead { font-size: var(--fs-lead); max-width: var(--measure-sm); line-height: 1.45; }
+
 .font-display {
-  font-family: 'Fraunces', 'Cormorant Garamond', Georgia, serif;
+  font-family: var(--font-display);
   font-optical-sizing: auto;
   font-weight: 450;
-  letter-spacing: -0.01em;
+  letter-spacing: var(--ls-display);
+  line-height: var(--lh-display);
+  font-variation-settings: "opsz" 144;   /* use the large-optical cut */
+}
+
+/* Apply the large-optical cut only at display sizes. Inline Fraunces at
+   subhead/paragraph sizes should use a smaller opsz for better color. */
+.font-display.is-small,
+h4.font-display, .font-display.h4 { font-variation-settings: "opsz" 36; line-height: var(--lh-heading); }
+.font-display.is-medium,
+h3.font-display, .font-display.h3 { font-variation-settings: "opsz" 72; line-height: var(--lh-heading); }
+
+/* Tabular lining figures wherever numbers should align */
+.num, .tabular, time,
+.font-mono, [class*="font-mono"],
+.tt-axis, .action-row .count, .filter-bar .count,
+table td, table th {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum", "lnum";
 }
 
 .font-mono-sm {
-  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
   letter-spacing: 0.02em;
 }
 
 .tick {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.76rem;
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
   color: var(--sm-ink-2);
   opacity: 0.55;
 }
@@ -63,9 +120,11 @@ html, body {
 .nav-btn {
   position: relative;
   padding: 0.5rem 0.75rem;
-  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: var(--ls-mono);
   color: var(--sm-ink-2);
   border: none;
   background: transparent;
@@ -95,15 +154,17 @@ html, body {
 /* Stamp label — tiny all-caps tag */
 .stamp {
   display: inline-block;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  font-size: var(--fs-cap);
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.16em;
+  letter-spacing: var(--ls-mono);
   color: var(--sm-ink-2);
   border: 1px solid currentColor;
   padding: 0.2rem 0.5rem;
   border-radius: 1px;
   line-height: 1.2;
+  font-variant-numeric: tabular-nums;
 }
 .stamp.ok     { color: #3E5E3A; }
 .stamp.wait   { color: var(--sm-clay); }
@@ -292,10 +353,11 @@ html, body {
   padding: 0.6rem 1rem;
   background: var(--sm-ink);
   color: var(--sm-paper);
-  font-size: 0.86rem;
-  font-family: 'JetBrains Mono', monospace;
+  font-size: var(--fs-small);
+  font-family: var(--font-mono);
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: var(--ls-mono);
   border-radius: 1px;
   border: 1px solid var(--sm-ink);
   cursor: pointer;
@@ -405,17 +467,22 @@ html, body {
 .action-row--open[data-status]         { box-shadow: inset 3px 0 0 var(--sm-forest), 0 0 0 1px rgba(43,58,46,0.15); }
 
 .action-row .who {
-  font-family: 'Fraunces', Georgia, serif;
-  font-size: 1.15rem;
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-variation-settings: "opsz" 36;
+  font-size: var(--fs-lead);
   font-weight: 500;
   color: var(--sm-ink);
-  line-height: 1.25;
+  line-height: var(--lh-heading);
+  letter-spacing: var(--ls-display);
 }
 .action-row .ask {
-  font-size: 0.95rem;
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
   color: var(--sm-ink-2);
   margin-top: 0.25rem;
   line-height: 1.4;
+  max-width: var(--measure);
 }
 
 /* Drawer collapsible chevron */

@@ -757,12 +757,23 @@
                 <div class="col-span-2">
                   <div class="flex items-baseline justify-between">
                     <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Location</label>
-                    <button type="button" class="btn-text !text-[11px]" @click="addLocationForAction()">+ Add new location</button>
+                    <button type="button" class="btn-text !text-[11px]" @click="openNewLocation('action')">+ Add new location</button>
                   </div>
-                  <select class="select mt-1" x-model="actionForm.locationId">
+                  <select class="select mt-1" x-model="actionForm.locationId" x-show="!newLoc.open">
                     <option value="">—</option>
                     <template x-for="l in LOCATIONS" :key="l.id"><option :value="l.id" x-text="l.name"></option></template>
                   </select>
+                  <!-- Inline add-location form (renders in place of the select when active) -->
+                  <div class="mt-1 p-3 bg-mist/40 border border-line rounded-sm" x-show="newLoc.open && newLoc.target === 'action'" x-transition>
+                    <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">New location · name</label>
+                    <input class="input mt-1 !py-1 !text-sm" x-model="newLoc.name" placeholder='e.g. "Craig&apos;s house", "Lund dockside"' @keydown.enter.prevent="saveNewLocation()" />
+                    <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60 mt-2 block">Address (optional)</label>
+                    <input class="input mt-1 !py-1 !text-sm" x-model="newLoc.addr" placeholder="Street + city" @keydown.enter.prevent="saveNewLocation()" />
+                    <div class="mt-2 flex gap-2 justify-end">
+                      <button type="button" class="btn secondary !py-1 !px-2 !text-[10px]" @click="cancelNewLocation()">Cancel</button>
+                      <button type="button" class="btn !py-1 !px-2 !text-[10px]" @click="saveNewLocation()">Save</button>
+                    </div>
+                  </div>
                 </div>
                 <div class="col-span-2">
                   <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Brief / title</label>
@@ -1011,12 +1022,22 @@
                 <div>
                   <div class="flex items-baseline justify-between">
                     <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Location</label>
-                    <button type="button" class="btn-text !text-[11px]" @click="addLocationForBlock(b)">+ Add new</button>
+                    <button type="button" class="btn-text !text-[11px]" @click="openNewLocation('block', b.id)">+ Add new</button>
                   </div>
-                  <select class="select mt-1" x-model="b.locationId" @change="saveBlock(b)">
+                  <select class="select mt-1" x-model="b.locationId" @change="saveBlock(b)" x-show="!newLoc.open">
                     <option value="">—</option>
                     <template x-for="l in LOCATIONS" :key="l.id"><option :value="l.id" x-text="l.name"></option></template>
                   </select>
+                  <div class="mt-1 p-3 bg-mist/40 border border-line rounded-sm" x-show="newLoc.open && newLoc.target === 'block' && newLoc.blockId === b.id" x-transition>
+                    <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">New location · name</label>
+                    <input class="input mt-1 !py-1 !text-sm" x-model="newLoc.name" placeholder='e.g. "Craig&apos;s house"' @keydown.enter.prevent="saveNewLocation()" />
+                    <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60 mt-2 block">Address (optional)</label>
+                    <input class="input mt-1 !py-1 !text-sm" x-model="newLoc.addr" placeholder="Street + city" @keydown.enter.prevent="saveNewLocation()" />
+                    <div class="mt-2 flex gap-2 justify-end">
+                      <button type="button" class="btn secondary !py-1 !px-2 !text-[10px]" @click="cancelNewLocation()">Cancel</button>
+                      <button type="button" class="btn !py-1 !px-2 !text-[10px]" @click="saveNewLocation()">Save</button>
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Attendees</label>

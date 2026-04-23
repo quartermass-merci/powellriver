@@ -50,6 +50,8 @@ function trip() {
     actions: [],
     contactOverrides: {},      // {interviewId: {email, phone, linkedin, notes}} — user edits, synced via Firebase
     customLocations: [],       // user-added locations, synced via Firebase
+    // Inline "add location" form state — shared between both drawers.
+    newLoc: { open: false, target: null, blockId: null, name: '', addr: '' },
     selectedBlockId: null,      // opens edit drawer
     focusedBlockId: null,       // detail strip + map focus (light-weight)
     toast: null,
@@ -86,16 +88,32 @@ function trip() {
     // Add a new location. Prompts user for name + address. Adds to customLocations
     // with coordinates defaulting to the Airbnb (so drive-time math stays sane
     // until the user tweaks). Returns the new id.
-    addCustomLocation() {
-      const name = window.prompt('Location name?\n(e.g. "Craig\'s house", "Lund dockside")');
-      if (!name || !name.trim()) return null;
-      const addr = window.prompt(`Address for "${name.trim()}"?\n(Optional. Street + city enough.)`) || '';
+    // Keep window._CUSTOM_LOCATIONS in sync with this.customLocations so the
+    // window.locationById() helper sees user additions.
+    _syncCustomToGlobal() {
+      window._CUSTOM_LOCATIONS = this.customLocations.slice();
+    },
+
+    // Open the inline "add location" form. `target` is 'action' or 'block';
+    // blockId is set when adding for a specific block in the meeting drawer.
+    openNewLocation(target, blockId) {
+      this.newLoc = { open: true, target, blockId: blockId || null, name: '', addr: '' };
+    },
+    cancelNewLocation() {
+      this.newLoc = { open: false, target: null, blockId: null, name: '', addr: '' };
+    },
+    // Save the inline form. Creates a new custom location, selects it in
+    // whichever drawer opened the form, closes the form.
+    saveNewLocation() {
+      const name = (this.newLoc.name || '').trim();
+      if (!name) { this.showToast('Name required'); return; }
+      const addr = (this.newLoc.addr || '').trim();
       const home = window.locationById('airbnb');
       const id = 'custom_' + Date.now().toString(36);
       const newLoc = {
         id,
-        name: name.trim(),
-        addr: addr.trim(),
+        name,
+        addr,
         lat: home ? home.lat : 49.84,
         lng: home ? home.lng : -124.52,
         cat: 'interview',
@@ -104,26 +122,38 @@ function trip() {
       this.customLocations.push(newLoc);
       this._syncCustomToGlobal();
       this.pushRemote();
-      this.showToast(`Added "${newLoc.name}". You can tweak coords later.`);
+      // Wire the new id into whichever form opened the modal
+      if (this.newLoc.target === 'action') {
+        this.actionForm.locationId = id;
+      } else if (this.newLoc.target === 'block' && this.newLoc.blockId) {
+        const b = this.blockById(this.newLoc.blockId);
+        if (b) { b.locationId = id; this.saveBlock(b); }
+      }
+      this.showToast(`Added "${name}"`);
+      this.cancelNewLocation();
+    },
+
+    // Legacy / programmatic entry — prompt-based, kept for Bash-era flows.
+    addCustomLocation() {
+      const name = window.prompt('Location name?\n(e.g. "Craig\'s house", "Lund dockside")');
+      if (!name || !name.trim()) return null;
+      const addr = window.prompt(`Address for "${name.trim()}"?\n(Optional. Street + city enough.)`) || '';
+      const home = window.locationById('airbnb');
+      const id = 'custom_' + Date.now().toString(36);
+      const newLoc = {
+        id, name: name.trim(), addr: addr.trim(),
+        lat: home ? home.lat : 49.84, lng: home ? home.lng : -124.52,
+        cat: 'interview', _custom: true,
+      };
+      this.customLocations.push(newLoc);
+      this._syncCustomToGlobal();
+      this.pushRemote();
       return id;
     },
 
-    // Keep window._CUSTOM_LOCATIONS in sync with this.customLocations so the
-    // window.locationById() helper sees user additions.
-    _syncCustomToGlobal() {
-      window._CUSTOM_LOCATIONS = this.customLocations.slice();
-    },
-
-    // Helpers used by "+ Add new location" buttons (Alpine can't do `const`
-    // inside an inline @click expression — needs to be a regular method).
-    addLocationForAction() {
-      const id = this.addCustomLocation();
-      if (id) this.actionForm.locationId = id;
-    },
-    addLocationForBlock(b) {
-      const id = this.addCustomLocation();
-      if (id && b) { b.locationId = id; this.saveBlock(b); }
-    },
+    // (Older bindings — kept as fallbacks but the inline form is preferred.)
+    addLocationForAction() { this.openNewLocation('action'); },
+    addLocationForBlock(b) { if (b) this.openNewLocation('block', b.id); },
     TEAMS: window.TEAMS,
     BLOCK_TYPES: window.BLOCK_TYPES,
     NON_NEGOTIABLES: window.NON_NEGOTIABLES,

@@ -100,5 +100,9 @@ window.driveMinutes = function (fromId, toId) {
 };
 
 window.locationById = function (id) {
-  return window.LOCATIONS.find(l => l.id === id) || null;
+  const found = window.LOCATIONS.find(l => l.id === id);
+  if (found) return found;
+  // Also check custom locations added at runtime (synced via Firebase).
+  const custom = (window._CUSTOM_LOCATIONS || []).find(l => l.id === id);
+  return custom || null;
 };

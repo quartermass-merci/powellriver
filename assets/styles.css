@@ -289,6 +289,37 @@ html, body {
 .btn.secondary:hover { background: var(--sm-mist); color: var(--sm-ink); }
 .btn.blood { background: var(--sm-blood); border-color: var(--sm-blood); }
 
+/* Text-only button — for filters, utility actions. No box, no uppercase. */
+.btn-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: transparent;
+  border: none;
+  padding: 0.35rem 0.25rem;
+  color: var(--sm-ink-2);
+  font-size: 0.82rem;
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+  transition: color 100ms ease, border-color 100ms ease;
+}
+.btn-text:hover { color: var(--sm-ink); border-bottom-color: var(--sm-line); }
+.btn-text.active { color: var(--sm-ink); border-bottom-color: var(--sm-forest); font-weight: 600; }
+
+/* Segmented filter group — visually unified, lightweight */
+.filter-bar {
+  display: inline-flex;
+  gap: 1.1rem;
+  align-items: center;
+  padding: 0.15rem 0;
+}
+.filter-bar .count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  opacity: 0.5;
+  margin-left: 0.2rem;
+}
+
 /* Toast */
 .toast {
   position: fixed; bottom: 24px; left: 50%;
@@ -348,6 +379,38 @@ html, body {
   box-shadow: inset 3px 0 0 var(--sm-forest);
 }
 
+/* Status-keyed left borders so the eye finds urgent work */
+.action-row[data-status="pending"]     { box-shadow: inset 3px 0 0 var(--sm-rust); }
+.action-row[data-status="in progress"] { box-shadow: inset 3px 0 0 var(--sm-gold); }
+.action-row[data-status="confirmed"]   { box-shadow: inset 3px 0 0 var(--sm-forest-2); }
+.action-row[data-status="done"]        { opacity: 0.45; box-shadow: inset 3px 0 0 var(--sm-line); }
+.action-row--open[data-status]         { box-shadow: inset 3px 0 0 var(--sm-forest), 0 0 0 1px rgba(43,58,46,0.15); }
+
+.action-row .who {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 0.98rem;
+  font-weight: 500;
+  color: var(--sm-ink);
+  line-height: 1.2;
+}
+.action-row .ask {
+  font-size: 0.82rem;
+  color: var(--sm-ink-2);
+  margin-top: 0.15rem;
+}
+
+/* Drawer collapsible chevron */
+.chev {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 180ms ease;
+}
+.chev.open { transform: rotate(-135deg); }
+
 /* Floating Undo button (when moveHistory is non-empty) */
 .undo-bar {
   position: fixed;
@@ -356,22 +419,72 @@ html, body {
   z-index: 50;
 }
 
-/* Day picker pills (inside Schedule section) */
+/* Day picker — horizontal strip, no-wrap, scrollable on narrow screens */
+.day-strip {
+  display: flex;
+  gap: 0.45rem;
+  overflow-x: auto;
+  padding: 0.2rem 0 0.6rem;
+  scrollbar-width: thin;
+}
+.day-strip::-webkit-scrollbar { height: 4px; }
+.day-strip::-webkit-scrollbar-thumb { background: var(--sm-line); border-radius: 4px; }
+
 .day-pill {
-  padding: 0.4rem 0.85rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.68rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  flex: 0 0 auto;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0.55rem 0.9rem;
   color: var(--sm-ink-2);
   background: var(--sm-paper);
   border: 1px solid var(--sm-line);
-  border-radius: 1px;
+  border-radius: 2px;
   cursor: pointer;
   transition: all 100ms ease;
+  text-align: left;
+  white-space: nowrap;
+  min-width: 118px;
+}
+.day-pill__date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+.day-pill__label {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 0.88rem;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  margin-top: 0.1rem;
 }
 .day-pill:hover { border-color: var(--sm-forest); color: var(--sm-ink); }
 .day-pill--active {
+  background: var(--sm-ink);
+  color: var(--sm-paper);
+  border-color: var(--sm-ink);
+}
+.day-pill--active .day-pill__date { opacity: 0.7; }
+
+/* Time-slot pill — smaller, for the Available Slots picker in the action drawer */
+.slot-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.55rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+  color: var(--sm-ink-2);
+  background: var(--sm-paper);
+  border: 1px solid var(--sm-line);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 100ms ease;
+}
+.slot-pill:hover { border-color: var(--sm-forest); color: var(--sm-ink); }
+.slot-pill--active {
   background: var(--sm-ink);
   color: var(--sm-paper);
   border-color: var(--sm-ink);

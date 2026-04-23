@@ -49,6 +49,7 @@ function trip() {
     blocks: [],                // flat array of schedule blocks across all 3 days
     actions: [],
     contactOverrides: {},      // {interviewId: {email, phone, linkedin, notes}} — user edits, synced via Firebase
+    customLocations: [],       // user-added locations, synced via Firebase
     selectedBlockId: null,      // opens edit drawer
     focusedBlockId: null,       // detail strip + map focus (light-weight)
     toast: null,
@@ -76,8 +77,42 @@ function trip() {
       brief: '', locked: true, emitIcs: true, emitMailto: false,
     },
 
-    // constants passed through from window
-    LOCATIONS: window.LOCATIONS,
+    // All locations available in dropdowns (seed + user-added)
+    get LOCATIONS() {
+      return [...window.LOCATIONS, ...(this.customLocations || [])];
+    },
+    get _BASE_LOCATIONS() { return window.LOCATIONS; },
+
+    // Add a new location. Prompts user for name + address. Adds to customLocations
+    // with coordinates defaulting to the Airbnb (so drive-time math stays sane
+    // until the user tweaks). Returns the new id.
+    addCustomLocation() {
+      const name = window.prompt('Location name?\n(e.g. "Craig\'s house", "Lund dockside")');
+      if (!name || !name.trim()) return null;
+      const addr = window.prompt(`Address for "${name.trim()}"?\n(Optional. Street + city enough.)`) || '';
+      const home = window.locationById('airbnb');
+      const id = 'custom_' + Date.now().toString(36);
+      const newLoc = {
+        id,
+        name: name.trim(),
+        addr: addr.trim(),
+        lat: home ? home.lat : 49.84,
+        lng: home ? home.lng : -124.52,
+        cat: 'interview',
+        _custom: true,
+      };
+      this.customLocations.push(newLoc);
+      this._syncCustomToGlobal();
+      this.pushRemote();
+      this.showToast(`Added "${newLoc.name}". You can tweak coords later.`);
+      return id;
+    },
+
+    // Keep window._CUSTOM_LOCATIONS in sync with this.customLocations so the
+    // window.locationById() helper sees user additions.
+    _syncCustomToGlobal() {
+      window._CUSTOM_LOCATIONS = this.customLocations.slice();
+    },
     TEAMS: window.TEAMS,
     BLOCK_TYPES: window.BLOCK_TYPES,
     NON_NEGOTIABLES: window.NON_NEGOTIABLES,
@@ -88,6 +123,7 @@ function trip() {
     init() {
       this.hydrateFromSeed();
       this.loadLocal();
+      this._ensureActionPerInterview();
       this.initFirebase();
       window.addEventListener('beforeunload', () => this.saveLocal());
       // Re-render day route when day changes; drop focus only if the focused block is on a different day
@@ -157,8 +193,10 @@ function trip() {
             this.blocks = v.blocks;
             this.actions = v.actions || this.actions;
             if (v.contactOverrides && typeof v.contactOverrides === 'object') this.contactOverrides = v.contactOverrides;
+            if (Array.isArray(v.customLocations)) { this.customLocations = v.customLocations; this._syncCustomToGlobal(); }
             this.lastEditedBy = v.meta?.lastEditedBy || null;
             this.lastEditedAt = v.meta?.lastEditedAt || 0;
+            this._ensureActionPerInterview();
           } else {
             // First run on this Firebase project — push the seed.
             this.pushRemote();
@@ -178,6 +216,7 @@ function trip() {
           if (Array.isArray(v.blocks))  this.blocks  = v.blocks;
           if (Array.isArray(v.actions)) this.actions = v.actions;
           if (v.contactOverrides && typeof v.contactOverrides === 'object') this.contactOverrides = v.contactOverrides;
+          if (Array.isArray(v.customLocations)) { this.customLocations = v.customLocations; this._syncCustomToGlobal(); }
           this.lastEditedBy = v.meta?.lastEditedBy || null;
           this.lastEditedAt = v.meta?.lastEditedAt || 0;
         });
@@ -196,6 +235,7 @@ function trip() {
         blocks: this.blocks,
         actions: this.actions,
         contactOverrides: this.contactOverrides,
+        customLocations: this.customLocations,
         meta: { version: this.version, lastEditedBy: this.uid || 'anon', lastEditedAt: this.lastEditedAt },
       }).catch(err => console.warn('firebase push', err));
     },
@@ -214,11 +254,28 @@ function trip() {
 
     // ---- derived data ----
     get timeSlots() {
+      return this._slotsInRange(4, 21);
+    },
+
+    // Day-specific visible range. Field days trim pre-8am and post-9pm
+    // (working hours). Travel days keep the early/late edges visible.
+    timeSlotsForDay(day) {
+      const ranges = {
+        sun: [7, 21],    // earliest block 07:30
+        mon: [8, 21],    // field day, respects 8-to-8 + evening synthesis
+        tue: [8, 21],    // field day
+        wed: [8, 22],    // field day + late synthesis
+        thu: [4, 16],    // 04:45 alarms, 14:30 flights depart
+      };
+      const [startH, endH] = ranges[day] || [4, 21];
+      return this._slotsInRange(startH, endH);
+    },
+
+    _slotsInRange(startH, endH) {
       const slots = [];
-      // 04:00 → 21:00 to cover Thursday's 04:45 departure + Sunday evening dinner.
-      for (let h = 4; h <= 21; h++) {
+      for (let h = startH; h <= endH; h++) {
         for (const m of [0, 15, 30, 45]) {
-          if (h === 21 && m > 0) break;
+          if (h === endH && m > 0) break;
           slots.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
         }
       }
@@ -236,11 +293,11 @@ function trip() {
     },
     dayHeadline(d) {
       return {
-        sun: 'Getting there. Two flights into YVR, the Budget pickup, the drive up to Horseshoe Bay, both ferry legs, arrive at the Airbnb before dark. Dinner together and the Monday briefing by 19:30.',
-        mon: 'Townsite, the archives, the Hulks. First real conversations — Craig and Ewan at the mill, Chris McDonough late afternoon. Mike and Katie run the first MOTS batch on Marine Ave.',
-        tue: 'The full embed. Four formal sit-downs, four shorter ones, the cultivation roundtable. Staff lunch together in the parking lot — cameras rolling quietly.',
-        wed: 'The day the character work happens. Brent B first thing south of the city. Wayne in town late morning. Lunch at Forrest. Peak in the afternoon. Mill tour at golden hour.',
-        thu: 'Heading home. The 06:25 Saltery Bay sailing is the first domino — if we miss it, the whole day slips. Langdale → Horseshoe Bay reserved at 10:30. Flights out of YVR at 14:30.',
+        sun: 'Two flights into YVR. Budget pickup, drive to Horseshoe Bay, both ferry legs, arrive the Airbnb before dark. Team dinner and the Monday briefing by 19:30.',
+        mon: 'Townsite, archives, the Hulks. Craig and Ewan at the mill in the afternoon. Chris McDonough late. Mike and Katie run the first MOTS batch on Marine Ave.',
+        tue: 'The full embed. Four formals, four short interviews, the cultivation roundtable. Staff lunch in the parking lot.',
+        wed: 'Character work. Brent B south of the city first thing. Wayne late morning. Lunch at Forrest. PR Peak in the afternoon. Mill tour at golden hour.',
+        thu: 'Return. The 06:25 Saltery Bay sailing is the first domino. Miss it and the whole day slips. Langdale to Horseshoe Bay reserved at 10:30. Flights out of YVR at 14:30.',
       }[d] || '';
     },
 
@@ -449,6 +506,30 @@ function trip() {
       return this.actions
         .map((a, _idx) => ({ ...a, _idx }))
         .filter(a => a.status === status);
+    },
+
+    // Make sure every interview block has a row on the Outreach page.
+    // Creates a lightweight auto-action for any intervieweeId missing one.
+    // Marked with _auto so we know it wasn't a deliberate human entry.
+    _ensureActionPerInterview() {
+      const existingIds = new Set(this.actions.filter(a => a.intervieweeId).map(a => a.intervieweeId));
+      const seenBlockIvs = new Set();
+      for (const b of this.blocks) {
+        if (!b.interviewId) continue;
+        if (existingIds.has(b.interviewId)) continue;
+        if (seenBlockIvs.has(b.interviewId)) continue;
+        seenBlockIvs.add(b.interviewId);
+        const ii = window.INTERVIEWS.find(i => i.id === b.interviewId);
+        this.actions.push({
+          owner: 'PK',
+          text: `Lock in ${ii ? ii.name : b.title}`,
+          status: b.locked ? 'confirmed' : 'pending',
+          intervieweeId: b.interviewId,
+          template: 'cold_pk',
+          linkedBlockId: b.id,
+          _auto: true,
+        });
+      }
     },
 
     // One-line summary of the linked block (if any) — shown under each action row.
@@ -703,24 +784,25 @@ function trip() {
     // Preserves any `notes` the user has already written so voice captures
     // aren't lost when you reset a drifted schedule.
     resetFromSeed() {
-      const preservedNotes = {};
+      const preservedNotes = {}, preservedSetup = {};
       for (const b of this.blocks) {
         if (b.interviewId && b.notes && b.notes.trim()) preservedNotes[b.interviewId] = b.notes;
+        if (b.interviewId && b.setupNotes && b.setupNotes.trim()) preservedSetup[b.interviewId] = b.setupNotes;
       }
       // Rebuild blocks from seed
       const fresh = [];
       for (const day of Object.keys(window.SCHEDULE_SEED)) {
         for (const b of window.SCHEDULE_SEED[day]) {
-          const copy = { ...b, notes: '' };
-          if (copy.interviewId && preservedNotes[copy.interviewId]) {
-            copy.notes = preservedNotes[copy.interviewId];
-          }
+          const copy = { ...b, notes: '', setupNotes: '' };
+          if (copy.interviewId && preservedNotes[copy.interviewId]) copy.notes = preservedNotes[copy.interviewId];
+          if (copy.interviewId && preservedSetup[copy.interviewId]) copy.setupNotes = preservedSetup[copy.interviewId];
           fresh.push(copy);
         }
       }
       this.blocks = fresh;
       // Rebuild actions, preserving status + any intervieweeId mapping from seed
       this.actions = window.ACTION_ITEMS.map(a => ({ ...a }));
+      this._ensureActionPerInterview();
       this.moveHistory = [];
       this.focusedBlockId = null;
       this.focusedActionIdx = null;
@@ -939,10 +1021,14 @@ function trip() {
       window.LOCATIONS.forEach(l => {
         const color = this._catColor[l.cat] || '#2B3A2E';
         const isPoi = l.cat === 'poi';
-        const size = isPoi ? 12 : 18;
+        const size = isPoi ? 11 : 18;
+        // POIs are outline-only so they don't compete with primary stops.
+        const html = isPoi
+          ? `<div class="marker-dot" style="background:transparent;width:${size}px;height:${size}px;border:1.5px solid ${color};"></div>`
+          : `<div class="marker-dot" style="background:${color};width:${size}px;height:${size}px;"></div>`;
         const icon = L.divIcon({
           className: 'marker-pin' + (isPoi ? ' marker-pin--poi' : ''),
-          html: `<div class="marker-dot" style="background:${color};width:${size}px;height:${size}px;${isPoi ? 'opacity:0.75;border-width:1px;' : ''}"></div>`,
+          html,
           iconSize: [size, size], iconAnchor: [size/2, size/2],
         });
         const marker = L.marker([l.lat, l.lng], { icon }).addTo(m);
@@ -1356,6 +1442,33 @@ function trip() {
       const tStart = this._toMin(buffer.start);
       const tEnd   = this._toMin(this.addMinutes(buffer.start, buffer.duration));
       return tEnd === bStart || tStart === bEnd;
+    },
+
+    // Send a day-before confirmation email (uses the 'confirm' intro template).
+    sendConfirmation(block, ii) {
+      if (!block || !ii) { this.showToast('No interviewee on file'); return; }
+      this.draftIntro(ii.id, 'confirm', block);
+    },
+
+    // Copy a shareable "event link" to the clipboard. The link is the Apple /
+    // Google Maps directions to the meeting location + the time — something
+    // you can text the attendee. If no location, falls back to a plain summary.
+    copyEventLink(block) {
+      if (!block) return;
+      const loc = block.locationId && window.locationById(block.locationId);
+      const day = this.dayLabel(block.day);
+      const end = this.addMinutes(block.start, block.duration);
+      let text = `${block.title}\n${day}, ${block.start}–${end} PT`;
+      if (loc) {
+        text += `\n${loc.name}\n${loc.addr}`;
+        text += `\nApple Maps: https://maps.apple.com/?q=${loc.lat},${loc.lng}`;
+        text += `\nGoogle Maps: https://www.google.com/maps/search/?api=1&query=${loc.lat},${loc.lng}`;
+      }
+      if (block.brief) text += `\n\n${block.brief}`;
+      navigator.clipboard.writeText(text).then(
+        () => this.showToast('Event details copied — paste into a text or email'),
+        () => this.showToast('Copy failed. Highlight and copy manually.')
+      );
     },
 
     // ---- Intro email drafter ----

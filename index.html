@@ -4,6 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Meridian 125W × Sister Merci — Field Planner</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="mask-icon" href="favicon.svg" color="#1F1F1F" />
+  <meta name="theme-color" content="#2B3A2E" />
 
   <!-- Tailwind (CDN) -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -60,11 +63,10 @@
       <span class="pipe">×</span>
       <span class="font-display italic">Sister Merci</span>
       <span class="pipe">·</span>
-      <span class="font-mono text-[11px] tracking-[0.2em] uppercase opacity-80">Field Planner · Apr 26 – 30, 2026</span>
+      <span class="font-mono text-[11px] tracking-[0.2em] uppercase opacity-80">Field Planner · Apr 26–30</span>
     </div>
     <div class="flex items-center gap-3 text-[11px] font-mono uppercase tracking-[0.15em]">
-      <span><span :class="'conn-dot ' + connState"></span><span x-text="connState === 'live' ? 'Live sync' : connState === 'local' ? 'Local only' : 'Connecting…'"></span></span>
-      <span class="opacity-60" x-show="lastEditedBy" x-text="'Last edit ' + lastEditedByShort"></span>
+      <span><span :class="'conn-dot ' + connState"></span><span x-text="connState === 'live' ? 'Live' : connState === 'local' ? 'Local only' : 'Connecting'"></span></span>
     </div>
   </header>
 
@@ -86,54 +88,64 @@
     <section class="section" x-show="tab==='action-items'" id="action-items">
       <div class="flex items-end justify-between mb-5 flex-wrap gap-4">
         <div>
-          <div class="stamp">Booking Console</div>
-          <h1 class="font-display text-4xl mt-3">Outreach</h1>
-          <p class="text-ink-2/80 max-w-2xl mt-2">Every person we need to lock in. Click any row to open the booking drawer — interviewee context, editable contact info, outreach templates, available-slot picker across both teams, and one-click confirm that writes to the schedule.</p>
+          <h1 class="font-display text-5xl">Outreach</h1>
+          <p class="text-ink-2/80 max-w-xl mt-2">People to lock in. Tap a row for their context, contact info, and templates. Confirm and it writes to the schedule.</p>
         </div>
-        <div class="flex gap-2">
-          <button class="btn secondary" @click="actionFilter='all'" :class="actionFilter==='all' ? 'btn' : ''">All</button>
-          <button class="btn secondary" @click="actionFilter='pending'" :class="actionFilter==='pending' ? 'btn' : ''">Pending</button>
-          <button class="btn secondary" @click="actionFilter='confirmed'" :class="actionFilter==='confirmed' ? 'btn' : ''">Confirmed</button>
-          <button class="btn" @click="addAction()">+ Add</button>
-        </div>
+        <button class="btn" @click="addActionAndOpen()">+ New booking</button>
+      </div>
+
+      <!-- Lightweight filter bar — text links, not buttons -->
+      <div class="filter-bar mb-6">
+        <button class="btn-text" :class="actionFilter==='all' ? 'active' : ''" @click="actionFilter='all'">
+          All <span class="count" x-text="actions.length"></span>
+        </button>
+        <button class="btn-text" :class="actionFilter==='pending' ? 'active' : ''" @click="actionFilter='pending'">
+          Pending <span class="count" x-text="actionsByStatus('pending').length + actionsByStatus('in progress').length"></span>
+        </button>
+        <button class="btn-text" :class="actionFilter==='confirmed' ? 'active' : ''" @click="actionFilter='confirmed'">
+          Locked in <span class="count" x-text="actionsByStatus('confirmed').length + actionsByStatus('done').length"></span>
+        </button>
       </div>
 
       <!-- Grouped by status -->
       <template x-for="status in ['pending','in progress','confirmed','done']" :key="status">
         <div class="mb-4" x-show="actionFilter==='all' || actionFilter===status || (actionFilter==='pending' && (status==='pending' || status==='in progress')) || (actionFilter==='confirmed' && (status==='confirmed' || status==='done'))">
-          <div class="stamp mb-2" :class="status==='confirmed' ? 'ok' : status==='pending' ? 'wait' : ''" x-text="status + ' · ' + actionsByStatus(status).length"></div>
+          <div class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-50 mb-1.5 px-1" x-text="status + ' · ' + actionsByStatus(status).length"></div>
           <div class="panel">
             <template x-for="(a, i) in actionsByStatus(status)" :key="a._idx">
-              <div class="action-row" :class="{ 'action-row--open': focusedActionIdx === a._idx }"
+              <div class="action-row" :data-status="a.status"
+                   :class="{ 'action-row--open': focusedActionIdx === a._idx }"
                    @click="openAction(a._idx)">
-                <div class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60 w-10 shrink-0" x-text="a.owner"></div>
-                <div class="flex-1">
-                  <div class="text-sm leading-snug" x-text="a.text"></div>
-                  <div class="mt-1 flex flex-wrap items-center gap-2 text-[11px] opacity-75">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-baseline gap-2 flex-wrap">
                     <template x-if="a.intervieweeId">
-                      <span class="font-mono uppercase tracking-[0.1em] text-[10px]"
-                            x-text="'→ ' + actionIntervieweeName(a)"></span>
+                      <span class="who" x-text="actionIntervieweeName(a)"></span>
                     </template>
-                    <template x-if="actionBlockSummary(a)">
-                      <span class="font-mono tracking-wide" x-text="actionBlockSummary(a)"></span>
+                    <template x-if="!a.intervieweeId">
+                      <span class="who italic opacity-70">Ad-hoc</span>
                     </template>
+                    <span class="font-mono text-[9px] uppercase tracking-[0.15em] opacity-40" x-text="a.owner"></span>
                   </div>
+                  <div class="ask" x-text="a.text"></div>
+                  <template x-if="actionBlockSummary(a)">
+                    <div class="font-mono text-[10px] opacity-55 mt-0.5" x-text="actionBlockSummary(a)"></div>
+                  </template>
                 </div>
                 <div class="flex items-center gap-2 shrink-0" @click.stop>
                   <template x-if="a.intervieweeId">
                     <button class="btn !py-1 !px-2 !text-[10px]"
-                            :title="'Draft ' + (a.template || 'cold_pk') + ' email in Gmail'"
-                            @click="draftIntro(a.intervieweeId, a.template || 'cold_pk')">✉ Draft</button>
+                            :title="'Draft intro email in Gmail'"
+                            @click="draftIntro(a.intervieweeId, a.template || 'cold_pk')">Draft</button>
                   </template>
-                  <select class="select !w-28 !py-1 !text-[11px]" x-model="a.status" @change="saveActions()">
+                  <select class="select !w-24 !py-1 !text-[11px]" x-model="a.status" @change="saveActions()">
                     <option>pending</option><option>in progress</option><option>confirmed</option><option>done</option>
                   </select>
-                  <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="removeActionByIdx(a._idx)">×</button>
+                  <button class="btn-text !text-[14px] opacity-40 hover:opacity-100" @click="removeActionByIdx(a._idx)">×</button>
                 </div>
               </div>
             </template>
             <template x-if="actionsByStatus(status).length === 0">
-              <div class="text-xs opacity-50 p-4 italic">Nothing here.</div>
+              <div class="text-xs opacity-50 p-4 italic">Nothing here yet.</div>
             </template>
           </div>
         </div>
@@ -144,14 +156,12 @@
     <section class="section" x-show="tab==='logistics'" id="logistics">
       <div class="flex items-end justify-between mb-5 flex-wrap gap-4">
         <div>
-          <div class="stamp">Part B · Travel + Booked Logistics</div>
-          <h1 class="font-display text-4xl mt-3">Flights, ferries, rental, lodging</h1>
-          <p class="text-ink-2/80 max-w-2xl mt-2">Travel dates, confirmation codes, and daily non-negotiables. Export all field notes to CSV for import into Google Sheets.</p>
+          <h1 class="font-display text-5xl">Logistics</h1>
+          <p class="text-ink-2/80 max-w-xl mt-2">Travel dates, confirmation codes, daily non-negotiables. Export field notes as CSV for Google Sheets.</p>
         </div>
-        <div class="flex flex-col gap-2 text-sm font-mono opacity-90">
-          <button class="btn" @click="exportNotesCsv()">⬇ Export notes (CSV)</button>
-          <button class="btn secondary" @click="if (confirm('Reset schedule to the canonical docx baseline? Any drag/drop/lock-in changes will be undone. Field notes are preserved.')) resetFromSeed()">↺ Reset from seed</button>
-          <div class="text-right opacity-70" x-text="'v' + version"></div>
+        <div class="flex items-center gap-2">
+          <button class="btn-text" @click="if (confirm('Reset schedule to the docx baseline? Drag/drop changes undone. Notes preserved.')) resetFromSeed()">Reset from seed ↺</button>
+          <button class="btn" @click="exportNotesCsv()">Export notes</button>
         </div>
       </div>
 
@@ -259,33 +269,34 @@
     <!-- ============ SCHEDULE (timetable + map + detail strip) ============ -->
     <section class="section" x-show="tab==='schedule'" id="schedule"
              x-effect="if (tab==='schedule') initMap(); if (tab==='schedule') $nextTick(() => renderDayRoute())">
-      <div class="flex items-end justify-between mb-5 flex-wrap gap-4">
-        <div>
-          <div class="stamp">Schedule · <span x-text="dayLabel(day)"></span></div>
-          <h1 class="font-display text-3xl mt-2" x-text="dayHeadline(day)"></h1>
-          <p class="text-xs opacity-60 mt-1">Click a block to focus it — map pans + directions + background appear. Drag to reschedule. Drop on a pinned block is refused; otherwise it swaps or pushes.</p>
-        </div>
-        <div class="flex gap-2">
-          <a class="btn secondary" :href="appleMapsForDay(day)" target="_blank" rel="noopener" title="Open all day's stops in Apple Maps (multi-stop driving route)">🗺 Today in Apple Maps</a>
-          <button class="btn secondary" @click="previewReorder(day)" :disabled="day==='tue' || day==='sun' || day==='thu'">Re-order for travel</button>
-          <button class="btn" @click="addActionAndOpen()">+ New booking</button>
-        </div>
-      </div>
-
-      <!-- Day picker within the Schedule (scoped here, not in global nav) -->
-      <div class="flex items-center gap-2 mb-4 flex-wrap">
-        <span class="font-mono text-[10px] tracking-[0.18em] uppercase opacity-60 mr-1">Day</span>
+      <!-- Day picker first — most frequent interaction on this page -->
+      <div class="day-strip mb-5">
         <template x-for="d in [
-            ['sun','Apr 26 · Outbound Travel'],
-            ['mon','Apr 27 · Community Immersion'],
-            ['tue','Apr 28 · Meridian On-Site'],
-            ['wed','Apr 29 · Mill Tour + Story Hunting'],
-            ['thu','Apr 30 · Return Travel']
+            ['sun','Apr 26','Outbound'],
+            ['mon','Apr 27','Community Immersion'],
+            ['tue','Apr 28','On-Site'],
+            ['wed','Apr 29','Mill Tour + Stories'],
+            ['thu','Apr 30','Return']
           ]" :key="d[0]">
           <button class="day-pill"
                   :class="day===d[0] ? 'day-pill--active' : ''"
-                  @click="day=d[0]" x-text="d[1]"></button>
+                  @click="day=d[0]">
+            <span class="day-pill__date" x-text="d[1]"></span>
+            <span class="day-pill__label" x-text="d[2]"></span>
+          </button>
         </template>
+      </div>
+
+      <div class="flex items-end justify-between mb-5 flex-wrap gap-4">
+        <div>
+          <h1 class="font-display text-3xl" x-text="dayLabel(day)"></h1>
+          <p class="text-sm opacity-75 mt-1 max-w-xl" x-text="dayHeadline(day)"></p>
+        </div>
+        <div class="flex items-center gap-3 flex-wrap">
+          <a class="btn-text" :href="appleMapsForDay(day)" target="_blank" rel="noopener" title="Open today's stops in Apple Maps">Apple Maps route ↗</a>
+          <button class="btn-text" @click="previewReorder(day)" :disabled="day==='tue' || day==='sun' || day==='thu'">Re-plan by drive time</button>
+          <button class="btn" @click="addActionAndOpen()">+ New booking</button>
+        </div>
       </div>
 
       <div class="tt-wrap panel">
@@ -298,7 +309,7 @@
 
         <!-- Grid -->
         <div class="tt-grid" @dragover.prevent @drop="onDrop($event)">
-          <template x-for="slot in timeSlots" :key="slot">
+          <template x-for="slot in timeSlotsForDay(day)" :key="slot">
             <div class="tt-row">
               <div class="tt-axis" :class="slot.endsWith(':00') ? 'hour' : ''" x-text="slot"></div>
               <!-- PK+Jen lane cell -->
@@ -424,32 +435,31 @@
     <section class="section" x-show="tab==='guide'" id="guide">
       <div class="flex items-end justify-between mb-5 flex-wrap gap-4">
         <div>
-          <div class="stamp">Phase One · Field Research</div>
-          <h1 class="font-display text-4xl mt-3">Conversation Guide</h1>
-          <p class="text-ink-2/80 max-w-2xl mt-2">Three tiers plus a Story Layer. Every conversation uses Tier 1. Add the matching Tier 2 module depending on who you're talking to. The Story Layer is always on — a posture more than a question set.</p>
+          <h1 class="font-display text-5xl">Conversation Guide</h1>
+          <p class="text-ink-2/80 max-w-xl mt-2">Three tiers plus a Story Layer. Every conversation uses Tier 1. Add the matching Tier 2 for who you're talking to. The Story Layer is always on: a posture, not a checklist.</p>
         </div>
-        <div class="flex flex-col gap-2">
-          <a class="btn" href="voicememos://" title="Opens Apple Voice Memos on iPhone/iPad. On other devices, use the Record button in any meeting's Field Notes.">● Open Voice Memos</a>
-          <button class="btn secondary" @click="toggleGuideRecording()" x-text="recording.blockId === '__guide__' ? '■ Stop recording' : '● Record scratchpad'"></button>
-          <button class="btn secondary !text-[10px]" @click="exportGuideScratchpad()" x-show="guideScratchpad && guideScratchpad.trim().length > 0">⬇ Export scratchpad</button>
+        <div class="flex items-center gap-2 flex-wrap">
+          <button class="btn-text" @click="exportGuideScratchpad()" x-show="guideScratchpad && guideScratchpad.trim().length > 0">Export scratchpad ↗</button>
+          <button class="btn secondary" @click="toggleGuideRecording()" x-text="recording.blockId === '__guide__' ? 'Stop' : 'Record scratchpad'"></button>
+          <a class="btn" href="voicememos://" title="Opens Apple Voice Memos on iPhone/iPad.">Open Voice Memos</a>
         </div>
       </div>
 
       <!-- Scratchpad — records general voice notes not tied to a specific meeting -->
       <div class="card mb-5" x-show="guideScratchpad || recording.blockId === '__guide__'" x-transition>
         <div class="flex items-center justify-between">
-          <div class="stamp">Scratchpad · raw notes</div>
+          <div class="font-display text-lg">Scratchpad</div>
           <div class="flex items-center gap-2">
-            <span class="text-xs opacity-60" x-show="recording.blockId === '__guide__'">Recording — speak naturally.</span>
-            <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="appendGuideTimestamp()">+ Timestamp</button>
+            <span class="text-xs opacity-60" x-show="recording.blockId === '__guide__'">Recording. Speak naturally.</span>
+            <button class="btn-text !text-xs" @click="appendGuideTimestamp()">+ Timestamp</button>
           </div>
         </div>
-        <textarea class="textarea mt-2" rows="6" x-model="guideScratchpad" placeholder="Raw voice-note transcript lands here. Paste phone transcripts too."></textarea>
+        <textarea class="textarea mt-2" rows="6" x-model="guideScratchpad" placeholder="Raw transcript lands here. Paste phone recordings too."></textarea>
       </div>
 
-      <!-- Rules of engagement — high-signal, field-facing -->
+      <!-- Rules of engagement -->
       <div class="card mb-5">
-        <div class="stamp">Rules of engagement</div>
+        <div class="font-display text-xl">Rules of engagement</div>
         <ul class="mt-3 space-y-2 text-sm">
           <li><b>Never read questions off a sheet.</b> Know the core five. Let them come out naturally. Chase prompts are there if someone stalls or gives a surface answer.</li>
           <li><b>Stories over opinions.</b> If someone says "it's great," chase: "Tell me about a specific time." Every adjective should be backed by a scene.</li>
@@ -466,8 +476,8 @@
       <div class="card mb-5">
         <div class="flex items-center justify-between">
           <div>
-            <div class="stamp ok">Tier 1 · Universal core</div>
-            <p class="text-xs opacity-60 mt-2">The spine of every conversation. MOTS use Q1–Q3 and close with Q5. Formals use all five with room to breathe.</p>
+            <div class="font-display text-xl">Tier 1 · Universal core</div>
+            <p class="text-xs opacity-60 mt-1">The spine of every conversation. MOTS use Q1–Q3 and close with Q5. Formals use all five, with room to breathe.</p>
           </div>
         </div>
         <ol class="mt-4 space-y-4 text-sm">
@@ -491,8 +501,8 @@
 
       <!-- MOTS Quick Card -->
       <div class="card mb-5">
-        <div class="stamp">MOTS quick card</div>
-        <p class="text-xs opacity-60 mt-2">For Mike + Katie street intercepts. Three questions, two minutes, one usable clip.</p>
+        <div class="font-display text-xl">MOTS quick card</div>
+        <p class="text-xs opacity-60 mt-1">For Mike + Katie street intercepts. Three questions, two minutes, one usable clip.</p>
         <div class="mt-3 space-y-2 text-sm">
           <div><b>Open:</b> "We're doing a story about Powell River. What comes to mind when you think of this place?"</div>
           <div><b>Probe:</b> "Do you know what's happening at the old mill site? What have you heard?"</div>
@@ -506,10 +516,10 @@
       <div class="card mb-5" x-data="{ open: false }">
         <div class="flex items-center justify-between cursor-pointer" @click="open = !open">
           <div>
-            <div class="stamp">Tier 2A · Meridian employees</div>
-            <p class="text-xs opacity-60 mt-2">Andrew, Braden, Josh, Kelly S, Sam, Kristian, Denise, Kelly B, Dave, Lene. Short: pick 2–3. Formal: all 6.</p>
+            <div class="font-display text-xl">Tier 2A · Meridian employees</div>
+            <p class="text-xs opacity-60 mt-1">Andrew, Braden, Josh, Kelly S, Sam, Kristian, Denise, Kelly B, Dave, Lene. Short: pick 2–3. Formal: all 6.</p>
           </div>
-          <button class="btn secondary !py-1 !px-2 !text-[10px]" x-text="open ? 'Collapse' : 'Open'"></button>
+          <span class="chev" :class="open ? 'open' : ''" aria-hidden="true"></span>
         </div>
         <ol class="mt-4 space-y-3 text-sm" x-show="open" x-transition>
           <li><b>QA1.</b> "Walk me through your day. What does the first hour here look like?" <span class="opacity-60 italic">Chase: what most people wouldn't expect.</span></li>
@@ -531,10 +541,10 @@
       <div class="card mb-5" x-data="{ open: false }">
         <div class="flex items-center justify-between cursor-pointer" @click="open = !open">
           <div>
-            <div class="stamp">Tier 2B · External + community</div>
-            <p class="text-xs opacity-60 mt-2">Craig/Ewan, Chris, River City, Brent B, Wayne, PR Peak, Forrest staff, dispensary owners. Short: pick 2–3. Formal: all 5.</p>
+            <div class="font-display text-xl">Tier 2B · External + community</div>
+            <p class="text-xs opacity-60 mt-1">Craig/Ewan, Chris, River City, Brent B, Wayne, PR Peak, Forrest staff, dispensary owners. Short: pick 2–3. Formal: all 5.</p>
           </div>
-          <button class="btn secondary !py-1 !px-2 !text-[10px]" x-text="open ? 'Collapse' : 'Open'"></button>
+          <span class="chev" :class="open ? 'open' : ''" aria-hidden="true"></span>
         </div>
         <ol class="mt-4 space-y-3 text-sm" x-show="open" x-transition>
           <li><b>QB1.</b> "How did you first hear about Meridian — or about cannabis happening at the mill?" <span class="opacity-60 italic">Traces the information pathway + first framing.</span></li>
@@ -562,10 +572,10 @@
       <div class="card mb-5" x-data="{ open: false }">
         <div class="flex items-center justify-between cursor-pointer" @click="open = !open">
           <div>
-            <div class="stamp warn">Story layer · always on</div>
-            <p class="text-xs opacity-60 mt-2">Not a tier — a posture. Cards in your back pocket. Drop them in when the moment opens up. Target: 20+ true-ish stories by Day 3.</p>
+            <div class="font-display text-xl" style="color:var(--sm-rust)">Story layer, always on</div>
+            <p class="text-xs opacity-60 mt-1">Not a tier. A posture. Cards in your back pocket, dropped in when the moment opens up. Target: 20+ true-ish stories by Day 3.</p>
           </div>
-          <button class="btn secondary !py-1 !px-2 !text-[10px]" x-text="open ? 'Collapse' : 'Open'"></button>
+          <span class="chev" :class="open ? 'open' : ''" aria-hidden="true"></span>
         </div>
         <div class="mt-4 space-y-3 text-sm" x-show="open" x-transition>
           <div><b>QS1.</b> "What's the weirdest thing about this place?" <span class="opacity-60 italic">Gateway question. Low stakes, high yield.</span></div>
@@ -582,7 +592,7 @@
 
       <!-- Subject → guide mapping -->
       <div class="card mb-5">
-        <div class="stamp">Who gets which guide</div>
+        <div class="font-display text-xl">Who gets which guide</div>
         <table class="mt-3 w-full text-xs">
           <thead class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">
             <tr class="border-b border-line"><th class="text-left py-1.5">Subject</th><th class="text-left">Day</th><th class="text-left">Guide</th><th class="text-left">Story</th><th class="text-left">Variant</th></tr>
@@ -603,7 +613,7 @@
 
       <!-- Output targets -->
       <div class="card mb-5">
-        <div class="stamp">Output targets</div>
+        <div class="font-display text-xl">Output targets</div>
         <ul class="mt-3 space-y-1.5 text-sm">
           <li>30+ MOTS clips (Tier 1 quick card, 2–5 min each)</li>
           <li>7 formal interviews (Tier 1 + full Tier 2, 30–45 min, PK + Jen)</li>
@@ -640,11 +650,44 @@
               <button class="btn secondary !px-2 !py-1" @click="closeAction()">×</button>
             </div>
 
+            <!-- Generic action contact + notes (tasks without an interviewee) -->
+            <template x-if="!ii">
+              <div class="mt-5 border-t border-line pt-4">
+                <div class="font-display text-base">Contact + notes</div>
+                <p class="text-[11px] opacity-60 mt-0.5">For tasks without an interviewee — log the person to call, details you'll need later.</p>
+                <div class="mt-3 grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Email</label>
+                    <input class="input mt-1 !py-1 !text-xs" type="email"
+                           :value="a.email || ''"
+                           @change="a.email = $event.target.value; saveActions()"
+                           placeholder="contact@example.com" />
+                  </div>
+                  <div>
+                    <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Phone</label>
+                    <input class="input mt-1 !py-1 !text-xs" type="tel"
+                           :value="a.phone || ''"
+                           @change="a.phone = $event.target.value; saveActions()"
+                           placeholder="+1 604-555-…" />
+                  </div>
+                </div>
+                <div class="mt-3 flex flex-wrap items-center gap-2">
+                  <template x-if="a.email"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="'mailto:' + a.email" x-text="a.email"></a></template>
+                  <template x-if="a.phone"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="'tel:' + a.phone.replace(/\s/g,'')">Call</a></template>
+                  <template x-if="a.phone"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="'sms:' + a.phone.replace(/\s/g,'')">Text</a></template>
+                </div>
+                <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60 mt-3 block">Notes</label>
+                <textarea class="textarea mt-1 !py-2 !text-sm" rows="3"
+                          :value="a.notes || ''"
+                          @change="a.notes = $event.target.value; saveActions()"
+                          placeholder="Anything helpful. Context, who said what, follow-ups."></textarea>
+              </div>
+            </template>
+
             <!-- Interviewee background -->
             <template x-if="ii">
               <div class="mt-5 border-l-2 border-forest pl-3">
-                <div class="stamp">Interviewee</div>
-                <div class="font-display text-lg mt-1" x-text="ii.name"></div>
+                <div class="font-display text-lg" x-text="ii.name"></div>
                 <div class="text-xs opacity-70" x-text="ii.role"></div>
                 <p class="text-sm mt-2" x-text="ii.bio"></p>
                 <p class="text-sm mt-2 opacity-90"><span class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Prep · </span><span x-text="ii.prep"></span></p>
@@ -712,7 +755,10 @@
                   </select>
                 </div>
                 <div class="col-span-2">
-                  <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Location</label>
+                  <div class="flex items-baseline justify-between">
+                    <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Location</label>
+                    <button type="button" class="btn-text !text-[10px]" @click="const id = addCustomLocation(); if (id) actionForm.locationId = id">+ Add new location</button>
+                  </div>
                   <select class="select mt-1" x-model="actionForm.locationId">
                     <option value="">—</option>
                     <template x-for="l in LOCATIONS" :key="l.id"><option :value="l.id" x-text="l.name"></option></template>
@@ -729,16 +775,16 @@
                 <div class="flex items-baseline gap-3 mb-2 flex-wrap">
                   <div class="stamp">Available slots</div>
                   <div class="font-mono text-[10px] opacity-60">
-                    Current pick · <span class="text-ink" x-text="(TEAMS[actionForm.team]||{}).label + ' · ' + actionForm.start"></span>
-                    — click any slot to switch
+                    Current pick · <span class="text-ink" x-text="(TEAMS[actionForm.team]||{}).label + ' · ' + actionForm.start"></span>.
+                    Click any slot to switch.
                   </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                   <div class="border-l-2 pl-3" style="border-color:#2B3A2E">
                     <div class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-70 mb-2">PK + Jen</div>
-                    <div class="flex flex-wrap gap-1.5">
+                    <div class="flex flex-wrap gap-1">
                       <template x-for="s in freeSlotsPK" :key="'pk-'+s">
-                        <button class="day-pill" :class="(actionForm.team==='pk_jen' && actionForm.start===s) ? 'day-pill--active' : ''"
+                        <button class="slot-pill" :class="(actionForm.team==='pk_jen' && actionForm.start===s) ? 'slot-pill--active' : ''"
                                 @click="pickFreeSlot('pk_jen', s)" x-text="s"></button>
                       </template>
                       <span class="text-xs opacity-50" x-show="freeSlotsPK.length === 0">No free slots this day for this duration</span>
@@ -746,9 +792,9 @@
                   </div>
                   <div class="border-l-2 pl-3" style="border-color:#8B5A2B">
                     <div class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-70 mb-2">Mike + Katie</div>
-                    <div class="flex flex-wrap gap-1.5">
+                    <div class="flex flex-wrap gap-1">
                       <template x-for="s in freeSlotsMK" :key="'mk-'+s">
-                        <button class="day-pill" :class="(actionForm.team==='mike_katie' && actionForm.start===s) ? 'day-pill--active' : ''"
+                        <button class="slot-pill" :class="(actionForm.team==='mike_katie' && actionForm.start===s) ? 'slot-pill--active' : ''"
                                 @click="pickFreeSlot('mike_katie', s)" x-text="s"></button>
                       </template>
                       <span class="text-xs opacity-50" x-show="freeSlotsMK.length === 0">No free slots this day for this duration</span>
@@ -809,24 +855,63 @@
             <!-- Interviewee bio + contact + intro templates -->
             <template x-if="ii">
               <div class="mt-5 border-l-2 border-forest pl-3">
-                <div class="stamp">Background</div>
-                <div class="font-display text-lg mt-1" x-text="ii.name"></div>
+                <div class="font-display text-lg" x-text="ii.name"></div>
                 <div class="text-xs opacity-70" x-text="ii.role"></div>
                 <p class="text-sm mt-2" x-text="ii.bio"></p>
                 <p class="text-sm mt-2 opacity-90"><span class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Prep · </span><span x-text="ii.prep"></span></p>
+
+                <!-- Editable contact fields (Joe or PK fills these in live) -->
+                <div class="mt-3 grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Email</label>
+                    <input class="input mt-1 !py-1 !text-xs" type="email"
+                           :value="ii.email"
+                           @change="updateContact(ii.id, 'email', $event.target.value)"
+                           placeholder="name@example.com" />
+                  </div>
+                  <div>
+                    <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Phone / text</label>
+                    <input class="input mt-1 !py-1 !text-xs" type="tel"
+                           :value="ii.phone || ''"
+                           @change="updateContact(ii.id, 'phone', $event.target.value)"
+                           placeholder="+1 604-555-…" />
+                  </div>
+                </div>
+
                 <div class="mt-3 flex flex-wrap items-center gap-2">
                   <template x-if="ii.linkedin"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="ii.linkedin" target="_blank" rel="noopener">LinkedIn</a></template>
                   <template x-if="ii.companyUrl"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="ii.companyUrl" target="_blank" rel="noopener" x-text="ii.company || 'Company'"></a></template>
                   <template x-if="ii.email"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="'mailto:' + ii.email" x-text="ii.email"></a></template>
+                  <template x-if="ii.phone"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="'sms:' + ii.phone.replace(/\s/g,'')">Text</a></template>
+                  <template x-if="ii.phone"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="'tel:' + ii.phone.replace(/\s/g,'')">Call</a></template>
                 </div>
+
                 <div class="mt-3 flex flex-wrap gap-2">
-                  <button class="btn !py-1 !px-2 !text-[10px]" @click="draftIntro(ii.id, 'warm_joe', b)">Warm · Joe</button>
-                  <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="draftIntro(ii.id, 'cold_pk', b)">Cold · PK</button>
-                  <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="draftIntro(ii.id, 'cold_katie', b)">Cold · Katie</button>
-                  <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="draftIntro(ii.id, 'confirm', b)">Confirmation</button>
+                  <button class="btn !py-1 !px-2 !text-[10px]" @click="sendConfirmation(b, ii)">Send confirmation</button>
+                  <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="copyEventLink(b)">Copy event link</button>
+                  <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="downloadIcs(b)">.ics</button>
+                </div>
+
+                <div class="mt-3">
+                  <div class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60 mb-1.5">Draft intro</div>
+                  <div class="flex flex-wrap gap-1.5">
+                    <button class="btn-text !text-[11px]" @click="draftIntro(ii.id, 'warm_joe', b)">Warm · Joe</button>
+                    <button class="btn-text !text-[11px]" @click="draftIntro(ii.id, 'cold_pk', b)">Cold · PK</button>
+                    <button class="btn-text !text-[11px]" @click="draftIntro(ii.id, 'cold_katie', b)">Cold · Katie</button>
+                  </div>
                 </div>
               </div>
             </template>
+
+            <!-- Setup notes / special asks — Joe or PK adds context to help the meeting land -->
+            <div class="mt-5 border-t border-line pt-4">
+              <div class="font-display text-base">Setup notes</div>
+              <p class="text-[11px] opacity-60 mt-0.5">Special asks, context, reminders. What would help this meeting go well?</p>
+              <textarea class="textarea mt-2 !py-2 !text-sm" rows="3"
+                        :value="b.setupNotes || ''"
+                        @change="b.setupNotes = $event.target.value; saveBlock(b)"
+                        placeholder="e.g. bring release forms · Chris prefers phone · don't lead with Meridian questions · park behind building"></textarea>
+            </div>
 
             <!-- Directions from previous block -->
             <template x-if="directionsToFocused">
@@ -888,11 +973,11 @@
                         placeholder="Paste voice-note transcripts here. They export to CSV (Logistics tab)."></textarea>
             </div>
 
-            <!-- Edit fields (collapsed by default, expandable) -->
+            <!-- Edit fields (collapsed by default) -->
             <div class="mt-5 border-t border-line pt-4" x-data="{ expanded: false }">
-              <div class="flex items-center justify-between">
-                <div class="stamp">Edit</div>
-                <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="expanded = !expanded" x-text="expanded ? 'Collapse' : 'Expand'"></button>
+              <div class="flex items-center justify-between cursor-pointer" @click="expanded = !expanded">
+                <div class="font-display text-base">Edit details</div>
+                <span class="chev" :class="expanded ? 'open' : ''" aria-hidden="true"></span>
               </div>
               <div class="mt-3 space-y-3" x-show="expanded" x-transition>
                 <div>
@@ -924,7 +1009,10 @@
                   </select>
                 </div>
                 <div>
-                  <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Location</label>
+                  <div class="flex items-baseline justify-between">
+                    <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Location</label>
+                    <button type="button" class="btn-text !text-[10px]" @click="const id = addCustomLocation(); if (id) { b.locationId = id; saveBlock(b) }">+ Add new</button>
+                  </div>
                   <select class="select mt-1" x-model="b.locationId" @change="saveBlock(b)">
                     <option value="">—</option>
                     <template x-for="l in LOCATIONS" :key="l.id"><option :value="l.id" x-text="l.name"></option></template>

@@ -960,7 +960,7 @@
                 <input class="input mt-2 !text-xl !font-medium !py-1.5"
                        style="font-family: var(--font-display); letter-spacing: -0.01em;"
                        x-model="b.title" @change="saveBlock(b)" />
-                <!-- Time + length edited inline, right here — no scroll to Edit details -->
+                <!-- Time + length + team edited inline, right here — no scroll to Edit details -->
                 <div class="mt-2 flex items-center gap-2 flex-wrap">
                   <span class="font-mono text-xs opacity-70" x-text="dayLabel(b.day)"></span>
                   <span class="opacity-40">·</span>
@@ -976,7 +976,17 @@
                     <option :value="90">90m</option><option :value="120">2h</option><option :value="180">3h</option>
                   </select>
                 </div>
-                <div class="font-mono text-xs opacity-70 mt-1" x-show="b.locationId" x-text="'@ ' + locationLabel(b.locationId)"></div>
+                <!-- Team selector + location, on their own line — change team right from the header -->
+                <div class="mt-2 flex items-center gap-2 flex-wrap">
+                  <select class="select !w-auto !py-1 !text-xs" x-model="b.team" @change="recordAndSave(b)">
+                    <option value="pk_jen">PK + Jen</option>
+                    <option value="mike_katie">Katie + Mike</option>
+                    <option value="both">Both Teams</option>
+                  </select>
+                  <template x-if="b.locationId">
+                    <span class="font-mono text-xs opacity-70">@ <span x-text="locationLabel(b.locationId)"></span></span>
+                  </template>
+                </div>
               </div>
               <button class="btn secondary !px-2 !py-1" @click="selectedBlockId=null">×</button>
             </div>

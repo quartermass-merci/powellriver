@@ -67,6 +67,8 @@ function trip() {
     mapDayLayers: [],           // polylines + numbered pins for current day route
     mapFocusLayer: null,        // polyline for the "from previous → focused" leg
     mapPulse: null,             // pulsing marker on focused location
+    mapInteractive: false,      // on mobile, map is locked until user explicitly unlocks
+    isTouchDevice: typeof window !== 'undefined' && (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)),
     showRoutePK: true,
     showRouteMK: true,
     osrmCache: {},              // cache key "lng1,lat1;lng2,lat2" -> { minutes, km, coords, source }
@@ -357,6 +359,7 @@ function trip() {
         ...base,
         email:    ov.email    !== undefined ? ov.email    : base.email,
         phone:    ov.phone    !== undefined ? ov.phone    : (base.phone || ''),
+        address:  ov.address  !== undefined ? ov.address  : (base.address || ''),
         linkedin: ov.linkedin !== undefined ? ov.linkedin : base.linkedin,
       };
     },
@@ -825,18 +828,20 @@ function trip() {
     // Preserves any `notes` the user has already written so voice captures
     // aren't lost when you reset a drifted schedule.
     resetFromSeed() {
-      const preservedNotes = {}, preservedSetup = {};
+      const preservedNotes = {}, preservedSetup = {}, preservedReferrals = {};
       for (const b of this.blocks) {
         if (b.interviewId && b.notes && b.notes.trim()) preservedNotes[b.interviewId] = b.notes;
         if (b.interviewId && b.setupNotes && b.setupNotes.trim()) preservedSetup[b.interviewId] = b.setupNotes;
+        if (b.interviewId && b.referrals && b.referrals.trim()) preservedReferrals[b.interviewId] = b.referrals;
       }
       // Rebuild blocks from seed
       const fresh = [];
       for (const day of Object.keys(window.SCHEDULE_SEED)) {
         for (const b of window.SCHEDULE_SEED[day]) {
-          const copy = { ...b, notes: '', setupNotes: '' };
+          const copy = { ...b, notes: '', setupNotes: '', referrals: '' };
           if (copy.interviewId && preservedNotes[copy.interviewId]) copy.notes = preservedNotes[copy.interviewId];
           if (copy.interviewId && preservedSetup[copy.interviewId]) copy.setupNotes = preservedSetup[copy.interviewId];
+          if (copy.interviewId && preservedReferrals[copy.interviewId]) copy.referrals = preservedReferrals[copy.interviewId];
           fresh.push(copy);
         }
       }
@@ -900,10 +905,10 @@ function trip() {
 
     // ---- CSV export of all notes ----
     exportNotesCsv() {
-      const rows = [['Day', 'Start', 'End', 'Team', 'Location', 'Title', 'Attendees', 'Brief', 'Notes']];
-      const days = ['mon', 'tue', 'wed'];
+      const rows = [['Day', 'Start', 'End', 'Team', 'Location', 'Title', 'Attendees', 'Brief', 'Notes', 'Who else to talk to', 'Setup notes']];
+      const days = ['sun', 'mon', 'tue', 'wed', 'thu'];
       const sorted = this.blocks
-        .filter(b => b.notes && b.notes.trim().length > 0 || b.brief && b.brief.trim().length > 0 || b.interviewId)
+        .filter(b => (b.notes && b.notes.trim()) || (b.brief && b.brief.trim()) || (b.referrals && b.referrals.trim()) || (b.setupNotes && b.setupNotes.trim()) || b.interviewId)
         .sort((a, b) => (days.indexOf(a.day) - days.indexOf(b.day)) || a.start.localeCompare(b.start));
       for (const b of sorted) {
         rows.push([
@@ -916,6 +921,8 @@ function trip() {
           b.attendees || '',
           b.brief || '',
           b.notes || '',
+          b.referrals || '',
+          b.setupNotes || '',
         ]);
       }
       const csv = rows.map(row =>
@@ -1052,8 +1059,17 @@ function trip() {
 
       // Explicit setView (fitBounds runs before layout on first paint and zooms out to 0).
       // Zoom 11 centered on Westview/Townsite shows: Brent B south, Lund north, Meridian, Airbnb, Marine Ave.
-      const m = L.map(el, { scrollWheelZoom: false, zoomControl: true })
-        .setView([49.858, -124.548], 11);
+      // On touch devices we start locked (no dragging/zoom) so page scroll passes through.
+      // The "Tap to interact" overlay unlocks it.
+      const locked = this.isTouchDevice;
+      const m = L.map(el, {
+        scrollWheelZoom: false,
+        zoomControl: true,
+        dragging:  !locked,
+        touchZoom: !locked,
+        tap:       !locked,
+        doubleClickZoom: !locked,
+      }).setView([49.858, -124.548], 11);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 18,
         attribution: '&copy; OpenStreetMap'
@@ -1090,8 +1106,22 @@ function trip() {
       });
 
       this.mapInstance = m;
+      this.mapInteractive = !locked;
       // Render the initial day route after the map has layout
       setTimeout(() => this.renderDayRoute(), 150);
+    },
+
+    // Toggle Leaflet interaction on touch devices so page scroll passes through
+    // the map by default — user taps a button to pan/zoom, then locks it again.
+    toggleMapInteraction() {
+      if (!this.mapInstance) return;
+      this.mapInteractive = !this.mapInteractive;
+      const m = this.mapInstance;
+      if (this.mapInteractive) {
+        m.dragging.enable(); m.touchZoom.enable(); m.tap && m.tap.enable(); m.doubleClickZoom.enable();
+      } else {
+        m.dragging.disable(); m.touchZoom.disable(); m.tap && m.tap.disable(); m.doubleClickZoom.disable();
+      }
     },
 
     // Clear the day-route layers (numbered pins + polylines)

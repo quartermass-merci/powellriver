@@ -599,7 +599,60 @@ table td, table th {
 }
 
 /* Leaflet container */
+.map-wrap { position: relative; }
 #map-el { height: 560px; background: var(--sm-mist); border: 1px solid var(--sm-line); border-radius: 2px; }
+@media (max-width: 768px) {
+  #map-el { height: 380px; }
+}
+
+/* Touch overlay — covers the map so page scroll passes through. Leaflet's
+   internal dragging is also disabled until user unlocks. */
+.map-unlock-btn {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  background: rgba(31, 31, 31, 0.92);
+  color: var(--sm-paper);
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-mono);
+  padding: 0.7rem 1.1rem;
+  border: 2px solid var(--sm-paper);
+  border-radius: 2px;
+  cursor: pointer;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.3);
+  pointer-events: auto;
+}
+.map-lock-btn {
+  position: absolute;
+  top: 10px; right: 10px;
+  z-index: 1001;
+  background: var(--sm-paper);
+  color: var(--sm-ink);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-mono);
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--sm-line);
+  border-radius: 2px;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}
+
+/* When interaction is locked, block touch events on the map layer so the
+   page scrolls through it naturally. */
+.map-wrap:has(.map-unlock-btn:not([style*="display: none"])) .leaflet-container {
+  touch-action: pan-y;
+  pointer-events: none;
+}
+.map-wrap:has(.map-unlock-btn:not([style*="display: none"])) .leaflet-control-container {
+  pointer-events: auto;   /* zoom +/- buttons stay tappable even when locked */
+}
 
 /* Numbered route pins */
 .route-num-dot {

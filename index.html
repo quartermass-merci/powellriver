@@ -391,7 +391,16 @@
             <div class="font-mono text-[10px] opacity-60 whitespace-nowrap" x-text="totalDriveSummary"></div>
           </div>
         </div>
-        <div id="map-el"></div>
+        <div class="map-wrap">
+          <div id="map-el"></div>
+          <!-- Touch-device overlay: page scrolls normally until the user explicitly unlocks -->
+          <button class="map-unlock-btn" x-show="isTouchDevice && !mapInteractive" @click="toggleMapInteraction()" x-transition>
+            Tap to pan · zoom the map
+          </button>
+          <button class="map-lock-btn" x-show="isTouchDevice && mapInteractive" @click="toggleMapInteraction()" x-transition>
+            Lock map (scroll freely)
+          </button>
+        </div>
         <div class="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 items-center text-xs opacity-75">
           <span><span class="legend-dot" style="background:#2B3A2E"></span>Facility</span>
           <span><span class="legend-dot" style="background:#8B5A2B"></span>Interview</span>
@@ -691,14 +700,14 @@
                 <div class="text-xs opacity-70" x-text="ii.role"></div>
                 <p class="text-sm mt-2" x-text="ii.bio"></p>
                 <p class="text-sm mt-2 opacity-90"><span class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Prep · </span><span x-text="ii.prep"></span></p>
-                <!-- Editable contact block — type in the email/phone Joe shares -->
+                <!-- Editable contact block — type in the email/phone/address Joe shares -->
                 <div class="mt-3 grid grid-cols-2 gap-2">
                   <div>
                     <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Email</label>
                     <input class="input mt-1 !py-1 !text-xs" type="email"
                            :value="ii.email"
                            @change="updateContact(ii.id, 'email', $event.target.value)"
-                           placeholder="joe@example.com" />
+                           placeholder="name@example.com" />
                   </div>
                   <div>
                     <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Phone / text</label>
@@ -707,6 +716,13 @@
                            @change="updateContact(ii.id, 'phone', $event.target.value)"
                            placeholder="+1 604-555-…" />
                   </div>
+                  <div class="col-span-2">
+                    <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Address (where to meet)</label>
+                    <input class="input mt-1 !py-1 !text-xs" type="text"
+                           :value="ii.address || ''"
+                           @change="updateContact(ii.id, 'address', $event.target.value)"
+                           placeholder="e.g. 4312 Fernwood Ave, Powell River" />
+                  </div>
                 </div>
                 <div class="mt-3 flex flex-wrap items-center gap-2">
                   <template x-if="ii.linkedin"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="ii.linkedin" target="_blank" rel="noopener">LinkedIn</a></template>
@@ -714,6 +730,11 @@
                   <template x-if="ii.email"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="'mailto:' + ii.email" x-text="ii.email"></a></template>
                   <template x-if="ii.phone"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="'sms:' + ii.phone.replace(/\s/g,'')" x-text="'Text ' + ii.phone"></a></template>
                   <template x-if="ii.phone"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="'tel:' + ii.phone.replace(/\s/g,'')">Call</a></template>
+                  <template x-if="ii.address">
+                    <a class="btn secondary !py-1 !px-2 !text-[10px]"
+                       :href="'https://maps.apple.com/?q=' + encodeURIComponent(ii.address)"
+                       target="_blank" rel="noopener">Open in Maps</a>
+                  </template>
                 </div>
                 <div class="mt-3">
                   <div class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60 mb-1.5">Open intro in Gmail</div>
@@ -887,6 +908,13 @@
                            @change="updateContact(ii.id, 'phone', $event.target.value)"
                            placeholder="+1 604-555-…" />
                   </div>
+                  <div class="col-span-2">
+                    <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Address (where to meet)</label>
+                    <input class="input mt-1 !py-1 !text-xs" type="text"
+                           :value="ii.address || ''"
+                           @change="updateContact(ii.id, 'address', $event.target.value)"
+                           placeholder="e.g. 4312 Fernwood Ave, Powell River" />
+                  </div>
                 </div>
 
                 <div class="mt-3 flex flex-wrap items-center gap-2">
@@ -895,6 +923,7 @@
                   <template x-if="ii.email"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="'mailto:' + ii.email" x-text="ii.email"></a></template>
                   <template x-if="ii.phone"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="'sms:' + ii.phone.replace(/\s/g,'')">Text</a></template>
                   <template x-if="ii.phone"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="'tel:' + ii.phone.replace(/\s/g,'')">Call</a></template>
+                  <template x-if="ii.address"><a class="btn secondary !py-1 !px-2 !text-[10px]" :href="'https://maps.apple.com/?q=' + encodeURIComponent(ii.address)" target="_blank" rel="noopener">Open in Maps</a></template>
                 </div>
 
                 <div class="mt-3 flex flex-wrap gap-2">
@@ -982,6 +1011,16 @@
                         x-model="b.notes"
                         @change="saveBlock(b)"
                         placeholder="Paste voice-note transcripts here. They export to CSV (Logistics tab)."></textarea>
+
+              <!-- "Who else should we talk to?" — the follow-up referral question -->
+              <div class="mt-4">
+                <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Who else should we talk to?</label>
+                <p class="text-[11px] opacity-60 mt-0.5">Names + any context they offered. These compound across the week.</p>
+                <textarea class="textarea mt-1 !py-2 !text-sm" rows="3"
+                          :value="b.referrals || ''"
+                          @change="b.referrals = $event.target.value; saveBlock(b)"
+                          placeholder="e.g. Jenny at the Forrest who knows the cage-fight history · Wayne's brother-in-law who ran lumber"></textarea>
+              </div>
             </div>
 
             <!-- Edit fields (collapsed by default) -->

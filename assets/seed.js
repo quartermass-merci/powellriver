@@ -529,9 +529,9 @@ window.SCHEDULE_SEED = {
   wed: [
     // PK + Jen lane (stories)
     T("wed", "08:00",  30, "pk_jen", "travel",   "Drive south to Brent B (30 min)",            { locationId: "brent_b" }),
-    T("wed", "08:30",  90, "pk_jen", "formal",   "Brent B · Wheelchair Weed",                   { locationId: "brent_b", interviewId: "brent_b", brief: "Broader PR cannabis community. Joe's warning: budgeted 45 min, stayed 2h. Built in extra time; go in with a wrap plan." }),
-    T("wed", "10:00",  30, "pk_jen", "travel",   "Return to city",                               { locationId: "meridian" }),
-    T("wed", "11:00",  20, "pk_jen", "short",    "Wayne Walsh",                                   { locationId: "meridian", interviewId: "wayne_walsh", brief: "The build. What the building fought back on." }),
+    T("wed", "08:30", 120, "pk_jen", "formal",   "Brent B · Wheelchair Weed",                   { locationId: "brent_b", interviewId: "brent_b", brief: "Broader PR cannabis community. Joe's warning: first visit ran 45 min \u2192 2 hours. Two-hour floor + go in with a wrap plan." }),
+    T("wed", "10:30",  30, "pk_jen", "travel",   "Return to city",                               { locationId: "meridian" }),
+    T("wed", "11:30",  30, "pk_jen", "short",    "Wayne Walsh",                                   { locationId: "meridian", interviewId: "wayne_walsh", brief: "The build. What the building fought back on. Lead with Oct 17 2018 — St. John's dispensary, first gram of legal cannabis in Canada. Pushed from 11:00 \u2192 11:30 to absorb any Brent overrun." }),
     T("wed", "12:00",  90, "pk_jen", "meal",     "Lunch · Monks or Forrest (old mill bar)",       { locationId: "forrest", brief: "Joe's rec — cage-fight stories." }),
     T("wed", "13:30",  30, "pk_jen", "formal",   "Powell River Peak",                             { locationId: "prpeak", interviewId: "pr_peak", brief: "How Powell River talks about itself." }),
     T("wed", "14:30",  30, "pk_jen", "formal",   "Dispensary Owner (TBD)",                        { locationId: "dispensary_1", interviewId: "dispensary_tbd", brief: "Retail side, what moves on the shelf." }),

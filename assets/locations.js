@@ -47,6 +47,9 @@ window.LOCATIONS = [
   { id: "liquor_store",     name: "BC Liquor Store",               addr: "Joyce Ave, Powell River",    lat: 49.8397, lng: -124.5115, cat: "poi" },
   { id: "art_gallery",      name: "Powell River Art Gallery",       addr: "Marine Ave, Powell River",   lat: 49.8371, lng: -124.5261, cat: "poi" },
   { id: "lund_hotel",        name: "Historic Lund Hotel",           addr: "Lund, BC",                   lat: 49.9822, lng: -124.7603, cat: "poi" },
+  { id: "nancy_bakery",      name: "Nancy's Bakery",                 addr: "Lund, BC",                   lat: 49.9820, lng: -124.7585, cat: "poi" },
+  { id: "texada",            name: "Texada Island · Gillies Bay",    addr: "Texada Island, BC",          lat: 49.6800, lng: -124.4700, cat: "interview" },
+  { id: "blubber_bay",       name: "Blubber Bay Terminal · Texada",  addr: "Blubber Bay, Texada Island", lat: 49.7970, lng: -124.6220, cat: "ferry" },
 ];
 
 // Manual overrides for known legs (minutes). Use when straight-line estimate

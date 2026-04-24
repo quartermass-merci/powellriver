@@ -44,11 +44,11 @@
 
   <!-- Our data + app — SYNCHRONOUS and BEFORE Alpine so window.trip is
        registered before Alpine walks the DOM. -->
-  <script src="firebase-config.js?v=2026-04-24b"></script>
-  <script src="assets/locations.js?v=2026-04-24b"></script>
-  <script src="assets/seed.js?v=2026-04-24b"></script>
-  <script src="assets/weird.js?v=2026-04-24b"></script>
-  <script src="assets/app.js?v=2026-04-24b"></script>
+  <script src="firebase-config.js?v=2026-04-24c"></script>
+  <script src="assets/locations.js?v=2026-04-24c"></script>
+  <script src="assets/seed.js?v=2026-04-24c"></script>
+  <script src="assets/weird.js?v=2026-04-24c"></script>
+  <script src="assets/app.js?v=2026-04-24c"></script>
 
   <!-- Alpine last — reads window.trip when it starts on DOMContentLoaded. -->
   <script defer src="https://unpkg.com/alpinejs@3.13.5/dist/cdn.min.js"></script>
@@ -776,6 +776,55 @@
         <p class="weird-hero__sub">A field guide to the weird corpus of Powell River — UFOs, Sasquatch, hermits, burned homesteads, a roadside cult, and restless ghosts. From Toba Inlet down through Powell Lake, the town, the Malaspina Channel, and across to Texada. What does this place believe about itself?</p>
       </div>
 
+      <!-- Add a story of your own. Everything synced via Firebase so Joe sees
+           your entries instantly + vice versa. -->
+      <div class="weird-add" x-show="!weirdForm.open">
+        <button class="btn" @click="openWeirdForm()">+ Add something weird</button>
+        <span class="weird-add__count" x-text="userWeird.length ? userWeird.length + ' submitted so far' : 'nothing submitted yet'"></span>
+      </div>
+
+      <div class="weird-form" x-show="weirdForm.open" x-transition>
+        <div class="weird-form__head">
+          <div class="font-display text-xl">Add something weird</div>
+          <button class="btn secondary !py-1 !px-2 !text-[10px]" @click="closeWeirdForm()">Cancel</button>
+        </div>
+        <p class="text-xs opacity-65 mt-1">Four fields. None of them need to be precise. "A Tuesday in August, 1987" is fine.</p>
+        <div class="grid md:grid-cols-2 gap-3 mt-4">
+          <div>
+            <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Date (or rough when)</label>
+            <input class="input mt-1" x-model="weirdForm.date" placeholder="e.g. Summer 1978 · Late 1990s · Last October" />
+          </div>
+          <div>
+            <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Layer</label>
+            <select class="select mt-1" x-model="weirdForm.layer">
+              <option value="sky">Sky · UFO</option>
+              <option value="high">High Country · Sasquatch</option>
+              <option value="lake">Lake · Hermits &amp; snow</option>
+              <option value="valleys">Lost Valleys · Homesteads</option>
+              <option value="trails">Trails · Contemporary</option>
+              <option value="townsite" selected>Townsite · Hauntings</option>
+              <option value="strait">Strait · Passage</option>
+            </select>
+          </div>
+          <div class="md:col-span-2">
+            <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Location (as close as you can get)</label>
+            <input class="input mt-1" x-model="weirdForm.where" placeholder='e.g. "Outside the Patricia Theatre" · "Cranberry Village" · "Back road past Lund"' />
+          </div>
+          <div class="md:col-span-2">
+            <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">What happened</label>
+            <textarea class="textarea mt-1" rows="4" x-model="weirdForm.event" placeholder="Tell it the way it was told to you. Don't polish it."></textarea>
+          </div>
+          <div class="md:col-span-2">
+            <label class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">Told to us by</label>
+            <input class="input mt-1" x-model="weirdForm.toldBy" placeholder="A name, or 'a man at the Forrest,' or 'my sister'" />
+          </div>
+        </div>
+        <div class="mt-4 flex justify-end gap-2">
+          <button class="btn secondary" @click="closeWeirdForm()">Cancel</button>
+          <button class="btn" @click="submitWeirdForm()">Add to the corpus</button>
+        </div>
+      </div>
+
       <!-- Layer filter chips -->
       <div class="weird-layers">
         <template x-for="(L, key) in WEIRD_LAYERS" :key="key">
@@ -926,6 +975,12 @@
               <button class="btn-text" @click="_weirdStep(-1)">← Previous in time</button>
               <button class="btn-text" @click="_weirdStep(1)">Next in time →</button>
             </div>
+            <template x-if="ev.userSubmitted">
+              <div class="weird-drawer__submitted">
+                <span class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">User submission</span>
+                <button class="btn blood !py-1 !px-2 !text-[10px]" @click="deleteWeirdEntry(ev.id)">Remove entry</button>
+              </div>
+            </template>
           </div>
         </template>
       </aside>

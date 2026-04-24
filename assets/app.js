@@ -183,14 +183,68 @@ function trip() {
     _weirdMap: null,
     _weirdMarkers: [],
 
+    // User-submitted weird entries — synced via Firebase.
+    userWeird: [],
+    weirdForm: { open: false, date: '', where: '', event: '', toldBy: '', layer: 'townsite' },
+    openWeirdForm() {
+      this.weirdForm = { open: true, date: '', where: '', event: '', toldBy: '', layer: 'townsite' };
+    },
+    closeWeirdForm() { this.weirdForm.open = false; },
+    submitWeirdForm() {
+      const f = this.weirdForm;
+      if (!f.event || !f.event.trim()) { this.showToast('What happened?'); return; }
+      if (!f.where || !f.where.trim()) { this.showToast('Where did it happen?'); return; }
+      // Title = first ~8 words of the event text
+      const words = f.event.trim().split(/\s+/);
+      const title = words.slice(0, 8).join(' ') + (words.length > 8 ? '…' : '');
+      // Drop pin at the Airbnb-area default with a small random offset so
+      // multiple submissions don't stack exactly. PK can refine coords later.
+      const centre = [49.84, -124.54];
+      const jitter = () => (Math.random() - 0.5) * 0.02;
+      const entry = {
+        id: 'user_' + Date.now().toString(36),
+        layer: f.layer || 'townsite',
+        kind: 'SUBMITTED',
+        title,
+        date: (f.date || '').trim() || 'Undated',
+        lat: centre[0] + jitter(),
+        lng: centre[1] + jitter(),
+        place: f.where.trim(),
+        summary: f.event.trim().slice(0, 180),
+        story: f.event.trim(),
+        source: (f.toldBy || '').trim() ? `Told by: ${f.toldBy.trim()}` : 'Submitted',
+        userSubmitted: true,
+        submittedAt: Date.now(),
+      };
+      this.userWeird.push(entry);
+      this.pushRemote();
+      // Re-render + select
+      if (this._weirdMap) this._renderWeirdMarkers();
+      this.closeWeirdForm();
+      this.showToast(`Added: ${title}`);
+      this.selectWeird(entry.id);
+    },
+    deleteWeirdEntry(id) {
+      if (!id || !id.startsWith('user_')) { this.showToast("Can't delete — not a user entry"); return; }
+      this.userWeird = this.userWeird.filter(e => e.id !== id);
+      this.weirdSelected = null;
+      this.pushRemote();
+      if (this._weirdMap) this._renderWeirdMarkers();
+      this.showToast('Removed');
+    },
+
     toggleWeirdLayer(key) {
       this.weirdActiveLayers[key] = !this.weirdActiveLayers[key];
       this._renderWeirdMarkers();
     },
-    weirdEventCount(layerKey) { return this.WEIRD_EVENTS.filter(e => e.layer === layerKey).length; },
+    // All events = seed corpus + any user-submitted entries.
+    get allWeirdEvents() {
+      return [...this.WEIRD_EVENTS, ...(this.userWeird || [])];
+    },
+    weirdEventCount(layerKey) { return this.allWeirdEvents.filter(e => e.layer === layerKey).length; },
     weirdEventById(id) {
       if (id === 'lake-thing' && window.WEIRD_SECRET) return window.WEIRD_SECRET;
-      return this.WEIRD_EVENTS.find(e => e.id === id);
+      return this.allWeirdEvents.find(e => e.id === id);
     },
     weirdConviction(id) {
       const v = (window.WEIRD_CONVICTION || {})[id];
@@ -203,7 +257,7 @@ function trip() {
     // Decade grouping for the timeline pills.
     get weirdByDecade() {
       const by = {};
-      for (const ev of this.WEIRD_EVENTS) {
+      for (const ev of this.allWeirdEvents) {
         const m = (ev.date || '').match(/\d{4}/);
         if (!m) continue;
         const decade = Math.floor(parseInt(m[0], 10) / 10) * 10;
@@ -223,7 +277,7 @@ function trip() {
     },
     get weirdChronological() {
       const parse = ev => { const m = (ev.date || '').match(/\d{4}/); return m ? parseInt(m[0], 10) : 2100; };
-      return [...this.WEIRD_EVENTS].sort((a, b) => parse(a) - parse(b));
+      return [...this.allWeirdEvents].sort((a, b) => parse(a) - parse(b));
     },
     weirdTimelinePosition(ev) {
       const m = (ev.date || '').match(/\d{4}/);
@@ -338,7 +392,7 @@ function trip() {
       // Collect visible events, then cluster any that sit within ~120m of
       // each other (the Patricia's 3 and the Courthouse's 5 are the main
       // cases). One marker per cluster; a numeric badge when >1.
-      const visible = this.WEIRD_EVENTS.filter(e => this.weirdActiveLayers[e.layer]);
+      const visible = this.allWeirdEvents.filter(e => this.weirdActiveLayers[e.layer]);
       const clusters = [];
       const threshold = 0.0014; // degrees (~150m)
       for (const ev of visible) {
@@ -357,7 +411,7 @@ function trip() {
           const layer = this.WEIRD_LAYERS[ev.layer] || {};
           const color = layer.color || '#1F1F1F';
           const icon = L.divIcon({
-            className: 'weird-marker',
+            className: 'weird-marker' + (ev.userSubmitted ? ' weird-marker--submitted' : ''),
             html: `<div class="weird-marker__inner" style="--c:${color}">${this._weirdGlyph(layer.glyph)}</div>`,
             iconSize: [34, 34], iconAnchor: [17, 17],
           });
@@ -679,6 +733,7 @@ function trip() {
             this.actions = v.actions || this.actions;
             if (v.contactOverrides && typeof v.contactOverrides === 'object') this.contactOverrides = v.contactOverrides;
             if (Array.isArray(v.customLocations)) { this.customLocations = v.customLocations; this._syncCustomToGlobal(); }
+            if (Array.isArray(v.userWeird)) this.userWeird = v.userWeird;
             this.lastEditedBy = v.meta?.lastEditedBy || null;
             this.lastEditedAt = v.meta?.lastEditedAt || 0;
             this._ensureActionPerInterview();
@@ -702,6 +757,7 @@ function trip() {
           if (Array.isArray(v.actions)) this.actions = v.actions;
           if (v.contactOverrides && typeof v.contactOverrides === 'object') this.contactOverrides = v.contactOverrides;
           if (Array.isArray(v.customLocations)) { this.customLocations = v.customLocations; this._syncCustomToGlobal(); }
+          if (Array.isArray(v.userWeird)) this.userWeird = v.userWeird;
           this.lastEditedBy = v.meta?.lastEditedBy || null;
           this.lastEditedAt = v.meta?.lastEditedAt || 0;
         });
@@ -768,6 +824,7 @@ function trip() {
         actions: this.actions,
         contactOverrides: this.contactOverrides,
         customLocations: this.customLocations,
+        userWeird: this.userWeird,
         meta: { version: this.version, lastEditedBy: this.uid || 'anon', lastEditedAt: this.lastEditedAt },
       }).catch(err => console.warn('firebase push', err));
     },

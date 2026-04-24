@@ -1242,6 +1242,51 @@ section.section { scroll-margin-top: 80px; }
   font-style: italic;
 }
 
+/* Add-a-story button + inline form */
+.weird-add {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+.weird-add__count {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  opacity: 0.55;
+}
+.weird-form {
+  background: #FBF6EB;
+  border: 1px solid rgba(31, 31, 31, 0.12);
+  border-left: 4px solid var(--sm-blood);
+  padding: 1.5rem;
+  border-radius: 2px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+}
+.weird-form__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+.weird-drawer__submitted {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed rgba(0,0,0,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+/* User-submitted markers — dashed white ring so they're distinct from the canon */
+.weird-marker--submitted .weird-marker__inner {
+  border-style: dashed;
+}
+
 .weird-layers {
   display: flex;
   gap: 0.5rem;

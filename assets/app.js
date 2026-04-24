@@ -1278,6 +1278,54 @@ function trip() {
       return null;
     },
 
+    // Push-to-schedule: the quick update action from the Outreach row.
+    // Sets status=confirmed, locks the linked block, and appends any note
+    // text to the block's setupNotes so it surfaces in the Schedule drawer.
+    quickPush: { openForIdx: null, note: '' },
+    toggleQuickPush(idx) {
+      if (this.quickPush.openForIdx === idx) {
+        this.quickPush = { openForIdx: null, note: '' };
+      } else {
+        this.quickPush = { openForIdx: idx, note: '' };
+      }
+    },
+    commitQuickPush(idx) {
+      const a = this.actions[idx];
+      if (!a) return;
+      const block = this._actionBlock(a);
+      a.status = 'confirmed';
+      if (block) {
+        block.locked = true;
+        if (this.quickPush.note && this.quickPush.note.trim()) {
+          const pad = n => String(n).padStart(2,'0');
+          const now = new Date();
+          const stamp = `[${pad(now.getMonth()+1)}/${pad(now.getDate())}]`;
+          const existing = block.setupNotes || '';
+          block.setupNotes = existing + (existing && !existing.endsWith('\n') ? '\n' : '') + `${stamp} ${this.quickPush.note.trim()}`;
+        }
+        this._recordMove(block);
+        this.saveBlock(block);
+      }
+      this.saveActions();
+      this.showToast(block
+        ? `Pushed to Schedule · ${this.interviewById(a.intervieweeId)?.name || a.text}`
+        : `Marked confirmed`);
+      this.quickPush = { openForIdx: null, note: '' };
+    },
+
+    // Auto-lock the linked block when an action flips to 'confirmed' via the
+    // status dropdown (makes the dropdown feel connected, not just a label).
+    onActionStatusChange(a) {
+      if (a.status === 'confirmed') {
+        const block = this._actionBlock(a);
+        if (block && !block.locked) {
+          block.locked = true;
+          this.saveBlock(block);
+        }
+      }
+      this.saveActions();
+    },
+
     // Create a new blank action + open its drawer for ad-hoc booking.
     addActionAndOpen() {
       this.actions.push({

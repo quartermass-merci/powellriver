@@ -44,16 +44,16 @@
 
   <!-- Our data + app — SYNCHRONOUS and BEFORE Alpine so window.trip is
        registered before Alpine walks the DOM. -->
-  <script src="firebase-config.js?v=2026-04-24c"></script>
-  <script src="assets/locations.js?v=2026-04-24c"></script>
-  <script src="assets/seed.js?v=2026-04-24c"></script>
-  <script src="assets/weird.js?v=2026-04-24c"></script>
-  <script src="assets/app.js?v=2026-04-24c"></script>
+  <script src="firebase-config.js?v=2026-04-24d"></script>
+  <script src="assets/locations.js?v=2026-04-24d"></script>
+  <script src="assets/seed.js?v=2026-04-24d"></script>
+  <script src="assets/weird.js?v=2026-04-24d"></script>
+  <script src="assets/app.js?v=2026-04-24d"></script>
 
   <!-- Alpine last — reads window.trip when it starts on DOMContentLoaded. -->
   <script defer src="https://unpkg.com/alpinejs@3.13.5/dist/cdn.min.js"></script>
 
-  <link rel="stylesheet" href="assets/styles.css" />
+  <link rel="stylesheet" href="assets/styles.css?v=2026-04-24d" />
 </head>
 <body class="bg-bone text-ink antialiased" x-data="trip()" x-cloak>
 
@@ -134,27 +134,68 @@
             <div class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-50 mb-1.5 px-1" x-text="status + ' · ' + peopleByStatus(status).length"></div>
             <div class="panel">
               <template x-for="a in peopleByStatus(status)" :key="a._idx">
-                <div class="action-row" :data-status="a.status"
-                     :class="{ 'action-row--open': focusedActionIdx === a._idx }"
-                     :style="focusedActionIdx === a._idx ? 'view-transition-name: action-drawer' : ''"
-                     @click="openAction(a._idx)">
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-baseline gap-2 flex-wrap">
-                      <span class="who" x-text="actionIntervieweeName(a)"></span>
+                <div class="action-row-wrap">
+                  <div class="action-row" :data-status="a.status"
+                       :class="{ 'action-row--open': focusedActionIdx === a._idx, 'action-row--pushing': quickPush.openForIdx === a._idx }"
+                       :style="focusedActionIdx === a._idx ? 'view-transition-name: action-drawer' : ''"
+                       @click="openAction(a._idx)">
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-baseline gap-2 flex-wrap">
+                        <span class="who" x-text="actionIntervieweeName(a)"></span>
+                      </div>
+                      <div class="ask" x-text="a.text"></div>
+                      <template x-if="actionBlockSummary(a)">
+                        <div class="font-mono text-[10px] opacity-55 mt-0.5" x-text="actionBlockSummary(a)"></div>
+                      </template>
                     </div>
-                    <div class="ask" x-text="a.text"></div>
-                    <template x-if="actionBlockSummary(a)">
-                      <div class="font-mono text-[10px] opacity-55 mt-0.5" x-text="actionBlockSummary(a)"></div>
-                    </template>
+                    <div class="flex items-center gap-2 shrink-0" @click.stop>
+                      <button class="btn btn--push !py-1 !px-2 !text-[10px]"
+                              :class="{ 'btn--push-active': quickPush.openForIdx === a._idx }"
+                              :title="actionBlockSummary(a) ? 'Push an update to the Schedule block' : 'Mark confirmed'"
+                              @click="toggleQuickPush(a._idx)">
+                        <span aria-hidden="true">⚡</span>
+                        <span class="ml-0.5" x-text="quickPush.openForIdx === a._idx ? 'Close' : 'Push'"></span>
+                      </button>
+                      <button class="btn !py-1 !px-2 !text-[10px]"
+                              :title="'Draft intro email in Gmail'"
+                              @click="draftIntro(a.intervieweeId, a.template || 'cold_pk')">Draft</button>
+                      <select class="select !w-24 !py-1 !text-[11px]" x-model="a.status" @change="onActionStatusChange(a)">
+                        <option>pending</option><option>in progress</option><option>confirmed</option><option>done</option>
+                      </select>
+                      <button class="btn-text !text-[14px] opacity-40 hover:opacity-100" @click="removeActionByIdx(a._idx)">×</button>
+                    </div>
                   </div>
-                  <div class="flex items-center gap-2 shrink-0" @click.stop>
-                    <button class="btn !py-1 !px-2 !text-[10px]"
-                            :title="'Draft intro email in Gmail'"
-                            @click="draftIntro(a.intervieweeId, a.template || 'cold_pk')">Draft</button>
-                    <select class="select !w-24 !py-1 !text-[11px]" x-model="a.status" @change="saveActions()">
-                      <option>pending</option><option>in progress</option><option>confirmed</option><option>done</option>
-                    </select>
-                    <button class="btn-text !text-[14px] opacity-40 hover:opacity-100" @click="removeActionByIdx(a._idx)">×</button>
+                  <!-- Inline push-to-schedule panel: expands beneath the row,
+                       appends a timestamped note to the linked block and locks it. -->
+                  <div class="action-row__quickpush" x-show="quickPush.openForIdx === a._idx" x-cloak
+                       @click.stop
+                       x-transition:enter="qp-enter" x-transition:enter-start="qp-enter-start" x-transition:enter-end="qp-enter-end">
+                    <div class="action-row__quickpush-head">
+                      <span class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-60">
+                        <span x-show="actionBlockSummary(a)">Push update →</span>
+                        <span x-show="!actionBlockSummary(a)">Mark confirmed</span>
+                      </span>
+                      <span class="font-mono text-[10px] opacity-50 ml-2" x-text="actionBlockSummary(a) || 'no block linked yet'"></span>
+                    </div>
+                    <textarea class="action-row__quickpush-note"
+                              x-model="quickPush.note"
+                              placeholder="Progress note — e.g. 'Confirmed by text, ETA 2:15', 'Added bio detail', 'Asked Joe to re-ping…'"
+                              rows="2"
+                              @keydown.meta.enter="commitQuickPush(a._idx)"
+                              @keydown.ctrl.enter="commitQuickPush(a._idx)"
+                              @keydown.escape="toggleQuickPush(a._idx)"
+                              x-init="$nextTick(() => $el.focus())"></textarea>
+                    <div class="action-row__quickpush-actions">
+                      <span class="font-mono text-[9px] uppercase tracking-[0.12em] opacity-45 mr-auto">
+                        <span x-show="actionBlockSummary(a)">Locks the block · appends note · sets status=confirmed</span>
+                        <span x-show="!actionBlockSummary(a)">Sets status=confirmed</span>
+                      </span>
+                      <button class="btn-text !text-[11px] opacity-60" @click="toggleQuickPush(a._idx)">Cancel</button>
+                      <button class="btn btn--forest !py-1 !px-3 !text-[11px]" @click="commitQuickPush(a._idx)">
+                        <span aria-hidden="true">⚡</span>
+                        <span class="ml-0.5">Push to Schedule</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </template>

@@ -495,6 +495,111 @@ table td, table th {
   max-width: var(--measure);
 }
 
+/* Wrapper around the action-row + its inline quickpush panel so the two
+   share a border-bottom cadence without breaking the flex layout of the row
+   itself. The wrapper is transparent; all visual weight is on the children. */
+.action-row-wrap {
+  display: block;
+  border-bottom: 1px solid var(--sm-line);
+}
+.action-row-wrap:last-child { border-bottom: none; }
+/* Drop the row's own border when it's inside a wrapper — wrapper owns it. */
+.action-row-wrap > .action-row { border-bottom: none; }
+.action-row--pushing {
+  background: rgba(212, 160, 23, 0.05);
+}
+
+/* ⚡ Push button — gold tint so it reads as an "apply" action vs. the
+   neutral Draft button next to it. The active state inverts to solid gold. */
+.btn--push {
+  border-color: rgba(212, 160, 23, 0.55);
+  color: var(--sm-gold);
+  background: rgba(212, 160, 23, 0.06);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+.btn--push:hover {
+  background: rgba(212, 160, 23, 0.14);
+  border-color: var(--sm-gold);
+}
+.btn--push-active {
+  background: var(--sm-gold);
+  color: var(--sm-parchment);
+  border-color: var(--sm-gold);
+}
+.btn--push-active:hover {
+  background: var(--sm-gold);
+  color: var(--sm-parchment);
+}
+/* Forest variant for the commit button inside the panel — reads as
+   "confirm this, it will change schedule state". */
+.btn--forest {
+  background: var(--sm-forest);
+  color: var(--sm-parchment);
+  border-color: var(--sm-forest);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+.btn--forest:hover {
+  background: var(--sm-forest-2);
+  border-color: var(--sm-forest-2);
+  color: var(--sm-parchment);
+}
+
+/* Inline "Push to Schedule" panel — expands directly under the row it
+   belongs to. Left border picks up the gold accent so it visually threads
+   to the ⚡ button that opened it. */
+.action-row__quickpush {
+  padding: 0.6rem 1rem 0.8rem 1rem;
+  background: rgba(212, 160, 23, 0.04);
+  box-shadow: inset 3px 0 0 var(--sm-gold);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.action-row__quickpush-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.action-row__quickpush-note {
+  width: 100%;
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: 1.4;
+  padding: 0.55rem 0.7rem;
+  background: var(--sm-parchment);
+  border: 1px solid var(--sm-line);
+  border-radius: 3px;
+  color: var(--sm-ink);
+  resize: vertical;
+  min-height: 2.4rem;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.action-row__quickpush-note:focus {
+  outline: none;
+  border-color: var(--sm-gold);
+  box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.18);
+}
+.action-row__quickpush-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+/* Alpine x-transition hooks for the quickpush panel — slide + fade so the
+   reveal feels connected to the row above instead of popping in. */
+.qp-enter { transition: opacity 180ms ease, transform 180ms ease, max-height 220ms ease; overflow: hidden; }
+.qp-enter-start { opacity: 0; transform: translateY(-4px); max-height: 0; }
+.qp-enter-end { opacity: 1; transform: translateY(0); max-height: 220px; }
+@media (prefers-reduced-motion: reduce) {
+  .qp-enter, .qp-enter-start, .qp-enter-end { transition: none; transform: none; max-height: none; }
+}
+
 /* Drawer H1 — editable title that looks like a heading until focused.
    When the user clicks, it reveals a proper input frame so edits feel
    intentional rather than accidental. */

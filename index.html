@@ -44,11 +44,11 @@
 
   <!-- Our data + app — SYNCHRONOUS and BEFORE Alpine so window.trip is
        registered before Alpine walks the DOM. -->
-  <script src="firebase-config.js"></script>
-  <script src="assets/locations.js"></script>
-  <script src="assets/seed.js"></script>
-  <script src="assets/weird.js"></script>
-  <script src="assets/app.js"></script>
+  <script src="firebase-config.js?v=2026-04-24b"></script>
+  <script src="assets/locations.js?v=2026-04-24b"></script>
+  <script src="assets/seed.js?v=2026-04-24b"></script>
+  <script src="assets/weird.js?v=2026-04-24b"></script>
+  <script src="assets/app.js?v=2026-04-24b"></script>
 
   <!-- Alpine last — reads window.trip when it starts on DOMContentLoaded. -->
   <script defer src="https://unpkg.com/alpinejs@3.13.5/dist/cdn.min.js"></script>
@@ -802,8 +802,10 @@
         <button class="map-lock-btn" x-show="isTouchDevice && weirdMapInteractive" @click="toggleWeirdMapInteraction()" x-transition>
           Lock map (scroll freely)
         </button>
-        <!-- Decorative flourish: a marine creature in the strait -->
-        <svg class="weird-flourish weird-flourish--creature" viewBox="0 0 200 80" aria-hidden="true">
+        <!-- Decorative flourish: a marine creature in the strait.
+             Click it to reveal the uncatalogued 21st entry. -->
+        <svg class="weird-flourish weird-flourish--creature" viewBox="0 0 200 80"
+             title="Something in the lake?" @click="revealLakeThing()">
           <path d="M8 60 Q30 30 55 48 Q75 62 95 42 Q118 22 140 45 Q163 68 185 48 Q192 42 197 46" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
           <circle cx="18" cy="57" r="1.8" fill="currentColor"/>
           <path d="M15 55 Q12 50 16 48" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
@@ -812,25 +814,33 @@
       </div>
 
 
-      <!-- Chronological timeline strip -->
-      <div class="weird-timeline">
-        <div class="weird-timeline__rail"></div>
-        <template x-for="ev in weirdChronological" :key="ev.id">
-          <button class="weird-timeline__dot"
-                  :class="weirdSelected === ev.id ? 'weird-timeline__dot--on' : ''"
-                  :style="'--dot:' + (WEIRD_LAYERS[ev.layer]||{}).color + '; left:' + weirdTimelinePosition(ev) + '%'"
-                  :title="ev.date + ' · ' + ev.title"
-                  @click="selectWeird(ev.id)">
-            <span class="weird-timeline__tip">
-              <span class="font-mono text-[9px] opacity-70" x-text="ev.date"></span>
-              <span x-text="ev.title"></span>
-            </span>
-          </button>
-        </template>
-        <!-- Decade markers -->
-        <template x-for="decade in WEIRD_TIMELINE_DECADES" :key="decade">
-          <div class="weird-timeline__decade" :style="'left:' + (WEIRD_TIMELINE_DECADES.indexOf(decade) / (WEIRD_TIMELINE_DECADES.length - 1)) * 100 + '%'" x-text="decade"></div>
-        </template>
+      <!-- Timeline as decade pills — taps expand to show that decade's events -->
+      <div class="weird-decades">
+        <div class="weird-decades__label">Walk the decades</div>
+        <div class="weird-decades__pills">
+          <template x-for="d in WEIRD_TIMELINE_DECADES" :key="d">
+            <button class="weird-decade"
+                    :class="weirdActiveDecade === d ? 'weird-decade--open' : ''"
+                    @click="openWeirdDecade(d)"
+                    :disabled="!(weirdByDecade[d] && weirdByDecade[d].length)">
+              <span class="weird-decade__label" x-text="d"></span>
+              <span class="weird-decade__count" x-text="(weirdByDecade[d] || []).length || '—'"></span>
+            </button>
+          </template>
+        </div>
+        <!-- Fanned-out events for the selected decade -->
+        <div class="weird-decade-events" x-show="weirdActiveDecade && weirdByDecade[weirdActiveDecade] && weirdByDecade[weirdActiveDecade].length" x-transition>
+          <template x-for="ev in (weirdByDecade[weirdActiveDecade] || [])" :key="ev.id">
+            <button class="weird-decade-event"
+                    :class="weirdSelected === ev.id ? 'weird-decade-event--on' : ''"
+                    :style="'--evc:' + (WEIRD_LAYERS[ev.layer]||{}).color"
+                    @click="selectWeird(ev.id)">
+              <span class="weird-decade-event__date" x-text="ev.date"></span>
+              <span class="weird-decade-event__title" x-text="ev.title"></span>
+              <span class="weird-decade-event__layer" x-text="(WEIRD_LAYERS[ev.layer]||{}).label"></span>
+            </button>
+          </template>
+        </div>
       </div>
 
       <!-- Narrative notes -->
@@ -882,6 +892,20 @@
               <button class="weird-drawer__close" @click="weirdSelected = null" aria-label="Close">×</button>
             </div>
             <p class="weird-drawer__summary" x-text="ev.summary"></p>
+
+            <!-- Conviction rating — 1–5 dots, coloured; null = no rating -->
+            <template x-if="weirdConviction(ev.id) !== null">
+              <div class="weird-drawer__conviction" :title="'Evidentiary weight: ' + weirdConviction(ev.id) + '/5'">
+                <span class="font-mono text-[10px] uppercase tracking-[0.15em] opacity-55">Conviction</span>
+                <span class="weird-conviction">
+                  <template x-for="n in 5" :key="n">
+                    <span class="weird-conviction__dot" :class="n <= weirdConviction(ev.id) ? 'weird-conviction__dot--on' : ''"></span>
+                  </template>
+                </span>
+                <span class="font-mono text-[10px] opacity-55" x-text="weirdConvictionLabel(weirdConviction(ev.id))"></span>
+              </div>
+            </template>
+
             <p class="weird-drawer__story" x-text="ev.story"></p>
             <!-- Go-there links — Apple Maps + Google Maps at the event's coords -->
             <div class="weird-drawer__actions">

@@ -230,3 +230,43 @@ window.WEIRD_EVENTS = [
 ];
 
 window.WEIRD_TIMELINE_DECADES = ['1920s','1930s','1940s','1950s','1960s','1970s','1980s','1990s','2000s','2010s','2020s'];
+
+// Evidentiary weight per event. 5 = sworn affidavit / magistrate / multiple
+// named witnesses. 3 = published account with named witness. 1 = anonymous
+// rumour or destroyed evidence. 0 = uncatalogued.
+window.WEIRD_CONVICTION = {
+  'ufo-powell-1978':                3,
+  'ufo-malaspina-undated':          3,
+  'ufo-texada-mar1999':             2,
+  'ufo-texada-apr1999':             3,
+  'sasq-ostman-1924':               5,
+  'sasq-reddit':                    1,
+  'lake-hudemka':                   4,
+  'lake-snow-cabin':                4,
+  'valley-olsen-1972':              5,
+  'valley-palmer':                  4,
+  'trail-cult-recent':              1,
+  'ghost-patricia-general':         4,
+  'ghost-patricia-2001':            4,
+  'ghost-patricia-2023':            3,
+  'ghost-courthouse-general':       3,
+  'ghost-courthouse-room3':         3,
+  'ghost-courthouse-roadtrippers-2022': 3,
+  'ghost-courthouse-debra-2023':    2,
+  'ghost-courthouse-belanger-2023': 3,
+  'strait-passage':                 null, // connective tissue, not rated
+  'lake-thing':                     0,    // easter egg entry
+};
+
+// Secret entry — revealed when the user clicks the sea serpent.
+// Not included in the default listing; the easter-egg handler pushes it in.
+window.WEIRD_SECRET = {
+  id: 'lake-thing', layer: 'lake', kind: 'UNCATALOGUED',
+  title: 'The Thing in Powell Lake',
+  date: 'Told after the second drink',
+  lat: 50.0300, lng: -124.4000,
+  place: 'Somewhere on Powell Lake',
+  summary: 'Something under the water. Bow waves without a boat. Kayakers who turned around and went home.',
+  story: 'You hear it if you sit on the right porch. A bow wave crossing the lake with nothing making it. A shape beneath the float cabin that held too long. Fishermen who stopped fishing there. Nobody writes it down. Nobody repeats it on camera. It lives in the pause before someone says "there\'s no such thing" and then tells you about it anyway. Mobley\'s 1984 book covers the lake in detail and doesn\'t mention this. Which is either evidence of nothing or evidence of exactly the kind of thing that wouldn\'t be in a published book.',
+  source: 'Uncatalogued · oral tradition',
+};

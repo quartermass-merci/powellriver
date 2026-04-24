@@ -188,7 +188,39 @@ function trip() {
       this._renderWeirdMarkers();
     },
     weirdEventCount(layerKey) { return this.WEIRD_EVENTS.filter(e => e.layer === layerKey).length; },
-    weirdEventById(id) { return this.WEIRD_EVENTS.find(e => e.id === id); },
+    weirdEventById(id) {
+      if (id === 'lake-thing' && window.WEIRD_SECRET) return window.WEIRD_SECRET;
+      return this.WEIRD_EVENTS.find(e => e.id === id);
+    },
+    weirdConviction(id) {
+      const v = (window.WEIRD_CONVICTION || {})[id];
+      return typeof v === 'number' ? v : null;
+    },
+    weirdConvictionLabel(v) {
+      return ({ 0: 'uncatalogued', 1: 'rumoured', 2: 'reported', 3: 'documented', 4: 'on the record', 5: 'sworn' })[v] || '';
+    },
+
+    // Decade grouping for the timeline pills.
+    get weirdByDecade() {
+      const by = {};
+      for (const ev of this.WEIRD_EVENTS) {
+        const m = (ev.date || '').match(/\d{4}/);
+        if (!m) continue;
+        const decade = Math.floor(parseInt(m[0], 10) / 10) * 10;
+        const key = decade + 's';
+        if (!by[key]) by[key] = [];
+        by[key].push(ev);
+      }
+      // Sort each decade chronologically
+      for (const k of Object.keys(by)) {
+        by[k].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      }
+      return by;
+    },
+    weirdActiveDecade: null,
+    openWeirdDecade(d) {
+      this.weirdActiveDecade = this.weirdActiveDecade === d ? null : d;
+    },
     get weirdChronological() {
       const parse = ev => { const m = (ev.date || '').match(/\d{4}/); return m ? parseInt(m[0], 10) : 2100; };
       return [...this.WEIRD_EVENTS].sort((a, b) => parse(a) - parse(b));
@@ -221,8 +253,6 @@ function trip() {
       if (typeof L === 'undefined') { setTimeout(() => this.initWeirdMap(), 200); return; }
       const el = document.getElementById('weird-map');
       if (!el || el.offsetWidth < 10) { setTimeout(() => this.initWeirdMap(), 150); return; }
-      // Bounds tightened to Powell River region only: Toba Inlet head north,
-      // Texada south, Lund/Tla'amin west, a strip of mainland east.
       const locked = this.isTouchDevice;
       const m = L.map(el, {
         scrollWheelZoom: false, zoomControl: true,
@@ -234,7 +264,62 @@ function trip() {
       }).addTo(m);
       this._weirdMap = m;
       this.weirdMapInteractive = !locked;
+      this._applyWeirdTone();
       this._renderWeirdMarkers();
+      // "Tonight's weird" — surface a random event the first time this tab
+      // is opened in a session. Skipped if the user already picked one.
+      if (!this._tonightsWeirdShown && !this.weirdSelected) {
+        this._tonightsWeirdShown = true;
+        const pool = this.WEIRD_EVENTS.filter(e => e.layer !== 'strait');
+        const pick = pool[Math.floor(Math.random() * pool.length)];
+        if (pick) setTimeout(() => this.selectWeird(pick.id), 1400);
+      }
+    },
+
+    // Time-of-day map tone. Bluer + darker at night; warmer sepia in the
+    // daytime. Applied as CSS custom properties on the map-wrap element.
+    _applyWeirdTone() {
+      const wrap = document.querySelector('.weird-map-wrap');
+      if (!wrap) return;
+      const h = new Date().getHours();
+      // 6am–6pm: daylight (warmer). 6pm–10pm: dusk. 10pm–6am: night.
+      let filter;
+      if (h >= 6 && h < 18) {
+        filter = 'sepia(52%) saturate(60%) brightness(0.98) contrast(1.10) hue-rotate(-8deg)';
+      } else if (h >= 18 && h < 22) {
+        filter = 'sepia(40%) saturate(55%) brightness(0.88) contrast(1.15) hue-rotate(-14deg)';
+      } else {
+        filter = 'sepia(28%) saturate(45%) brightness(0.70) contrast(1.22) hue-rotate(-22deg)';
+      }
+      wrap.style.setProperty('--weird-tone', filter);
+    },
+
+    // Reveal the secret 21st event — "The Thing in Powell Lake".
+    // Triggered by clicking the decorative sea serpent SVG.
+    revealLakeThing() {
+      // Add a small marker for it if not already on the map, then select.
+      if (!this._lakeThingMarkerAdded && this._weirdMap && window.WEIRD_SECRET) {
+        const s = window.WEIRD_SECRET;
+        const icon = L.divIcon({
+          className: 'weird-marker weird-marker--secret',
+          html: `<div class="weird-marker__inner" style="--c:#44546A">${this._weirdGlyph('compass')}</div>`,
+          iconSize: [34, 34], iconAnchor: [17, 17],
+        });
+        const marker = L.marker([s.lat, s.lng], { icon, zIndexOffset: 2000 }).addTo(this._weirdMap);
+        marker.on('click', () => this.selectWeird('lake-thing'));
+        marker.bindTooltip(`<b>${s.title}</b><br><span style="font-family:JetBrains Mono,monospace;font-size:10px;opacity:0.7">${s.date}</span>`,
+          { direction: 'top', offset: [0, -14], opacity: 0.96 });
+        this._weirdMarkers.push(marker);
+        this._lakeThingMarkerAdded = true;
+      }
+      this.selectWeird('lake-thing');
+      this.showToast('Uncatalogued entry revealed');
+      // Flick the serpent's tail briefly
+      const flourish = document.querySelector('.weird-flourish--creature');
+      if (flourish) {
+        flourish.classList.add('weird-flourish--flicked');
+        setTimeout(() => flourish.classList.remove('weird-flourish--flicked'), 900);
+      }
     },
     toggleWeirdMapInteraction() {
       const m = this._weirdMap; if (!m) return;
@@ -250,31 +335,160 @@ function trip() {
     _renderWeirdMarkers() {
       if (!this._weirdMap) return;
       this._clearWeirdMarkers();
-      for (const ev of this.WEIRD_EVENTS) {
-        if (!this.weirdActiveLayers[ev.layer]) continue;
+      // Collect visible events, then cluster any that sit within ~120m of
+      // each other (the Patricia's 3 and the Courthouse's 5 are the main
+      // cases). One marker per cluster; a numeric badge when >1.
+      const visible = this.WEIRD_EVENTS.filter(e => this.weirdActiveLayers[e.layer]);
+      const clusters = [];
+      const threshold = 0.0014; // degrees (~150m)
+      for (const ev of visible) {
+        let found = null;
+        for (const c of clusters) {
+          const dLat = Math.abs(c.lat - ev.lat);
+          const dLng = Math.abs(c.lng - ev.lng);
+          if (dLat < threshold && dLng < threshold) { found = c; break; }
+        }
+        if (found) found.events.push(ev);
+        else clusters.push({ lat: ev.lat, lng: ev.lng, events: [ev] });
+      }
+      for (const c of clusters) {
+        if (c.events.length === 1) {
+          const ev = c.events[0];
+          const layer = this.WEIRD_LAYERS[ev.layer] || {};
+          const color = layer.color || '#1F1F1F';
+          const icon = L.divIcon({
+            className: 'weird-marker',
+            html: `<div class="weird-marker__inner" style="--c:${color}">${this._weirdGlyph(layer.glyph)}</div>`,
+            iconSize: [34, 34], iconAnchor: [17, 17],
+          });
+          const marker = L.marker([ev.lat, ev.lng], { icon }).addTo(this._weirdMap);
+          marker.on('click', () => this.selectWeird(ev.id));
+          marker.bindTooltip(`<b>${ev.title}</b><br><span style="font-family:JetBrains Mono,monospace;font-size:10px;opacity:0.7">${ev.date}</span>`,
+            { direction: 'top', offset: [0, -14], opacity: 0.96 });
+          this._weirdMarkers.push(marker);
+        } else {
+          // Cluster marker with a numeric badge — click to expand.
+          const colors = c.events.map(e => (this.WEIRD_LAYERS[e.layer] || {}).color || '#1F1F1F');
+          const ring = colors.join(',');
+          const icon = L.divIcon({
+            className: 'weird-cluster',
+            html: `<div class="weird-cluster__inner" data-ring="${ring}">${c.events.length}</div>`,
+            iconSize: [40, 40], iconAnchor: [20, 20],
+          });
+          const marker = L.marker([c.lat, c.lng], { icon }).addTo(this._weirdMap);
+          const titles = c.events.map(e => `• ${e.title}`).join('<br>');
+          marker.bindTooltip(`<b>${c.events.length} events here</b><br>${titles}`,
+            { direction: 'top', offset: [0, -16], opacity: 0.96 });
+          marker.on('click', () => this._expandCluster(c));
+          this._weirdMarkers.push(marker);
+        }
+      }
+    },
+
+    // When a clustered marker is tapped, spiderfy its children outward so
+    // the user can pick one. Cluster collapses again when any event is
+    // selected or when the user taps anywhere else on the map.
+    _expandCluster(cluster) {
+      if (!this._weirdMap) return;
+      // If we're already expanded on this cluster, cycle to the next event.
+      if (this._expandedCluster === cluster) {
+        const idx = (cluster._cursor || 0);
+        this.selectWeird(cluster.events[idx].id);
+        cluster._cursor = (idx + 1) % cluster.events.length;
+        return;
+      }
+      this._expandedCluster = cluster;
+      cluster._cursor = 0;
+      // Clear any previous spiderfy
+      if (this._spiderLayers) for (const m of this._spiderLayers) this._weirdMap.removeLayer(m);
+      this._spiderLayers = [];
+      const radius = 0.0011;
+      const count = cluster.events.length;
+      cluster.events.forEach((ev, i) => {
+        const angle = (i / count) * Math.PI * 2 - Math.PI / 2;
+        const lat = cluster.lat + radius * Math.cos(angle);
+        const lng = cluster.lng + radius * Math.sin(angle) * 1.6;
         const layer = this.WEIRD_LAYERS[ev.layer] || {};
         const color = layer.color || '#1F1F1F';
         const icon = L.divIcon({
-          className: 'weird-marker',
+          className: 'weird-marker weird-marker--spider',
           html: `<div class="weird-marker__inner" style="--c:${color}">${this._weirdGlyph(layer.glyph)}</div>`,
-          iconSize: [30, 30], iconAnchor: [15, 15],
+          iconSize: [34, 34], iconAnchor: [17, 17],
         });
-        const marker = L.marker([ev.lat, ev.lng], { icon }).addTo(this._weirdMap);
-        marker.on('click', () => { this.weirdSelected = ev.id; });
-        marker.bindTooltip(`<b>${ev.title}</b><br><span style="font-family:JetBrains Mono,monospace;font-size:10px;opacity:0.7">${ev.date}</span>`,
-          { direction: 'top', offset: [0, -12], opacity: 0.96 });
-        this._weirdMarkers.push(marker);
-      }
+        const m = L.marker([lat, lng], { icon, zIndexOffset: 1000 }).addTo(this._weirdMap);
+        m.bindTooltip(`<b>${ev.title}</b><br><span style="font-family:JetBrains Mono,monospace;font-size:10px;opacity:0.7">${ev.date}</span>`,
+          { direction: 'top', offset: [0, -14], opacity: 0.96 });
+        m.on('click', () => this.selectWeird(ev.id));
+        this._spiderLayers.push(m);
+      });
+      // Zoom in gently
+      this._weirdMap.flyTo([cluster.lat, cluster.lng], Math.max(this._weirdMap.getZoom() + 1, 15), { duration: 0.7 });
+      // Collapse on next map click
+      const onClick = () => {
+        this._collapseCluster();
+        this._weirdMap.off('click', onClick);
+      };
+      setTimeout(() => this._weirdMap.on('click', onClick), 300);
+    },
+    _collapseCluster() {
+      if (this._spiderLayers) for (const m of this._spiderLayers) this._weirdMap.removeLayer(m);
+      this._spiderLayers = [];
+      this._expandedCluster = null;
     },
     _weirdGlyph(kind) {
+      // Richer hand-drawn-feel SVGs. White strokes/fills so they sit on the
+      // coloured roundel. Each is one layer's identity.
       const svgs = {
-        ufo:   '<svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="2.6" fill="none" stroke="white" stroke-width="1.3"/><ellipse cx="12" cy="10.5" rx="5" ry="2.5" fill="none" stroke="white" stroke-width="1.3"/><circle cx="7" cy="12" r="0.9" fill="white"/><circle cx="12" cy="12" r="0.9" fill="white"/><circle cx="17" cy="12" r="0.9" fill="white"/></svg>',
-        print: '<svg viewBox="0 0 24 24"><ellipse cx="12" cy="16" rx="4.8" ry="3.4" fill="white"/><ellipse cx="8" cy="9" rx="1.6" ry="2" fill="white"/><ellipse cx="16" cy="9" rx="1.6" ry="2" fill="white"/><ellipse cx="11" cy="5.5" rx="1.2" ry="1.6" fill="white"/><ellipse cx="13" cy="5.5" rx="1.2" ry="1.6" fill="white"/></svg>',
-        cabin: '<svg viewBox="0 0 24 24"><path d="M4 18 L12 8 L20 18 Z M6 18 L6 14 M18 18 L18 14 M10 18 L10 14 L14 14 L14 18" fill="none" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg>',
-        smoke: '<svg viewBox="0 0 24 24"><path d="M12 20 L12 16 Q9 13 12 10 Q15 7 11 4 Q9 2 12 1" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round"/><path d="M7 20 L17 20" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>',
-        eye:   '<svg viewBox="0 0 24 24"><path d="M3 12 Q12 4 21 12 Q12 20 3 12 Z" fill="none" stroke="white" stroke-width="1.4"/><circle cx="12" cy="12" r="3" fill="none" stroke="white" stroke-width="1.2"/><circle cx="12" cy="12" r="1.2" fill="white"/></svg>',
-        wisp:  '<svg viewBox="0 0 24 24"><path d="M8 20 Q6 16 9 13 Q12 10 10 7 Q9 5 12 3 Q15 5 14 7 Q12 10 15 13 Q18 16 16 20 Z" fill="white" opacity="0.9"/></svg>',
-        compass:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="white" stroke-width="1"/><path d="M12 4 L13.2 12 L12 20 L10.8 12 Z M4 12 L12 10.8 L20 12 L12 13.2 Z" fill="white"/></svg>',
+        // A saucer with beam rays — UFO sightings
+        ufo: `<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+          <ellipse cx="12" cy="11" rx="8.5" ry="2.1" fill="white" fill-opacity="0.15"/>
+          <ellipse cx="12" cy="11" rx="8.5" ry="2.1"/>
+          <path d="M6.5 10.5 Q9 7 12 7 Q15 7 17.5 10.5"/>
+          <circle cx="12" cy="8.2" r="0.9" fill="white"/>
+          <path d="M8 13 L7 17 M12 13 L12 18 M16 13 L17 17" stroke-dasharray="0.6 1.3"/>
+        </svg>`,
+        // Hairy bipedal silhouette — Sasquatch
+        print: `<svg viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="0.4" stroke-linejoin="round">
+          <path d="M12 3 Q14.6 3 15 6 Q15.3 8 14 9 L14 11 Q16.8 12 17 15 L16.5 17 L15 16.5 L15 20 L13.5 20 L13.5 18 L13 18 L13 21 L11 21 L11 18 L10.5 18 L10.5 20 L9 20 L9 16.5 L7.5 17 L7 15 Q7.2 12 10 11 L10 9 Q8.7 8 9 6 Q9.4 3 12 3 Z"/>
+          <circle cx="10.8" cy="6.2" r="0.5" fill="#1F1F1F"/>
+          <circle cx="13.2" cy="6.2" r="0.5" fill="#1F1F1F"/>
+        </svg>`,
+        // A cabin with a smoking chimney — hermits, snow surveys
+        cabin: `<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3.5 20 L3.5 11 L12 4 L20.5 11 L20.5 20 Z"/>
+          <path d="M9.5 20 L9.5 14 L14.5 14 L14.5 20" fill="white" fill-opacity="0.18"/>
+          <path d="M16 9 L16 6 L18 6 L18 10.5"/>
+          <path d="M17 5.5 Q16 4 17 3 Q18 2 17 0.8" stroke-width="1"/>
+        </svg>`,
+        // A smoke column rising over a broken frame — burned homesteads
+        smoke: `<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 20 L18 20"/>
+          <path d="M8 20 L10 14 L8.5 11"/>
+          <path d="M14 20 L12 14 L13 10"/>
+          <path d="M12 10 Q9 7 12 4 Q15 1 11 -1" stroke-width="1.1" opacity="0.9"/>
+        </svg>`,
+        // An eye in a triangle — cult / occult
+        eye: `<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3.5 L21 20 L3 20 Z"/>
+          <ellipse cx="12" cy="14.5" rx="4.5" ry="2.5" fill="white" fill-opacity="0.15"/>
+          <circle cx="12" cy="14.5" r="1.6" fill="white"/>
+          <circle cx="12" cy="14.5" r="0.5" fill="#1F1F1F"/>
+        </svg>`,
+        // A ghost wisp with a hollow face — hauntings
+        wisp: `<svg viewBox="0 0 24 24" fill="white" fill-opacity="0.92" stroke="white" stroke-width="0.5">
+          <path d="M7 20 L7.8 18 L6.5 17 L7.8 16 L6.5 14.5 Q4.5 11 6.5 7.5 Q9 3 12 3.5 Q15.5 4 16.5 7.5 Q18 11 16 15.5 L17 17 L15.5 17.5 L16.5 19 L15 20 L7 20 Z"/>
+          <ellipse cx="10" cy="10" rx="0.9" ry="1.4" fill="#1F1F1F"/>
+          <ellipse cx="14" cy="10" rx="0.9" ry="1.4" fill="#1F1F1F"/>
+          <path d="M10.5 13.5 Q12 14.5 13.5 13.5" fill="none" stroke="#1F1F1F" stroke-width="0.9"/>
+        </svg>`,
+        // Old compass rose — the strait
+        compass: `<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/>
+          <circle cx="12" cy="12" r="5.5"/>
+          <path d="M12 3 L13.6 12 L12 21 L10.4 12 Z" fill="white"/>
+          <path d="M3 12 L12 10.4 L21 12 L12 13.6 Z" fill="white" opacity="0.7"/>
+          <circle cx="12" cy="12" r="1" fill="#1F1F1F"/>
+        </svg>`,
       };
       return svgs[kind] || svgs.wisp;
     },
